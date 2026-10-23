@@ -1,0 +1,168 @@
+NEMO LICENSE API v1 — LOCAL IMPLEMENTATION
+
+Trạng thái: đã triển khai server local, kiểm thử bằng client Node tạo khóa thiết bị.
+Đã build/cài bản iOS local-test trên iPhone 7 Plus; kích hoạt, offline, hết hạn và khôi phục đã qua. Chưa thử iPad hoặc đưa lên VPS.
+Base local: http://localhost:3000
+Base dự kiến production: https://nemoapp.duckdns.org (cần triển khai HTTPS trước).
+Không gửi key, chữ ký hoặc giấy phép trong URL/query string. Chỉ dùng POST JSON.
+Các response đều Cache-Control: no-store. Không cần cookie admin cho API thiết bị.
+
+1. KHÓA KÝ SERVER
+npm run license:keygen [thư-mục-riêng]
+Mặc định tạo .local/license-keys/private.pem (600) và public.pem.
+Lệnh từ chối ghi đè. LICENSE_PRIVATE_KEY_FILE trỏ tới private.pem trên server.
+Không đóng gói private.pem vào IPA, không đặt trong public/webroot.
+Sao lưu khóa riêng an toàn. Mất/đổi khóa sẽ ảnh hưởng giấy phép và client đã pin.
+Client phải có sẵn public.pem đáng tin cậy hoặc khóa raw tương đương, không tự
+chấp nhận một khóa công khai mới do response mạng cung cấp.
+
+2. DANH TÍNH THIẾT BỊ
+Client tạo cặp khóa Ed25519 một lần, giữ private key trong Keychain, dùng lại
+cho những lần kiểm tra tiếp theo. Chỉ gửi public key SPKI DER, mã hóa base64
+chuẩn có padding (44 byte DER, chuỗi 60 ký tự). Không dùng UUID làm bằng chứng.
+Fingerprint = SHA-256 của 44 byte DER, biểu diễn hex chữ thường.
+Đây là danh tính bằng khóa: ai sao chép được private key có thể giả cùng danh tính;
+không phải chứng thực phần cứng hay App Attest. Xử lý mất Keychain qua chuyển máy.
+
+3. XIN THỬ THÁCH ĐỂ KÍCH HOẠT
+POST /api/v1/challenge
+Content-Type: application/json
+{
+  "purpose": "activate",
+  "publicKey": "<SPKI DER base64>",
+  "key": "NEMO-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX",
+  "deviceName": "iPad của khách",
+  "clientNonce": "<16–128 ký tự base64url ngẫu nhiên do client tạo>"
+}
+Key được trim và chuyển uppercase trước khi băm. Không lưu key rõ vào database.
+Response 200:
+{
+  "challengeId": "<32 ký tự hex>",
+  "message": "<chuỗi JSON do server tạo>",
+  "expiresAt": "<UTC ISO 8601>",
+  "serverTime": "<UTC ISO 8601>"
+}
+Thông điệp ràng buộc purpose, fingerprint, tham chiếu giấy phép, tên máy, nonce
+và thời hạn. ClientNonce nếu có được echo trong message.nonce và claims.nonce.
+Client iOS luôn tạo nonce mới và kiểm tra cả hai giá trị, không chấp nhận phản hồi
+cũ cho một yêu cầu mới. API vẫn nhận client cũ thiếu nonce (server tự tạo nonce),
+nhưng client đó không có bảo vệ tương đương chống phát lại response.
+Client ký ĐÚNG bytes UTF-8 của message; không parse rồi serialize lại.
+Signature = Ed25519(message), 64 byte, mã hóa base64url không padding (86 ký tự).
+
+4. KÍCH HOẠT
+POST /api/v1/activate
+{ "challengeId": "...", "signature": "<base64url>" }
+Không gửi lại hay cho phép sửa purpose/publicKey/key/name ở bước này.
+Server xác minh chữ ký, khóa bản ghi license và kiểm tra thiết bị hiện có.
+- Key mới được cấp active qua trang admin, activated_at = giờ UTC DB lúc cấp,
+  expires_at = lúc cấp + duration_days (mặc định 30 ngày). /activate chỉ gắn
+  thiết bị và giữ nguyên thời hạn, kể cả khi nhập key sau nhiều ngày.
+- Key pending cũ: chuyển active khi /activate thành công, activated_at = giờ UTC
+  DB, expires_at = activated_at + duration_days. Không tự đổi dữ liệu pending cũ.
+- Máy cũ kích hoạt lại: giữ nguyên ngày kích hoạt và hết hạn.
+- Máy khác đang chiếm key: device_mismatch.
+- Key hết hạn/thu hồi: không cấp lease.
+- Một danh tính thiết bị chỉ gắn với một key tại một thời điểm.
+Thử thách đã được dùng thành công bị xóa trong cùng transaction; replay bị từ chối.
+Thử thách lỗi không kích hoạt được vẫn bị hạn chế số lần thử, hết hạn sau 5 phút.
+Nếu response bị mất, có thể xin thử thách mới và kích hoạt lại trên cùng máy;
+server không đặt lại 30 ngày.
+
+Response 200 (cũng là response của verify):
+{
+  "token": "<JWS compact EdDSA/JWT>",
+  "licenseId": "<chuỗi số>",
+  "device": "<fingerprint>",
+  "serverTime": "<UTC ISO>",
+  "leaseExpiresAt": "<UTC ISO>",
+  "licenseExpiresAt": "<UTC ISO>",
+  "refreshAfter": "<UTC ISO, gợi ý tối đa 1 giờ>"
+}
+Client có thể bỏ key rõ sau kích hoạt, giữ licenseId + private key + token.
+
+5. KIỂM TRA VÀ LÀM MỚI
+Xin challenge tương tự nhưng:
+{
+  "purpose": "verify",
+  "publicKey": "<cùng public key>",
+  "licenseId": "<ID nhận lúc kích hoạt>"
+}
+Ký message rồi POST /api/v1/verify với challengeId + signature.
+Bắt buộc có liên kết thiết bị hiện tại; không tự tạo liên kết mới khi verify.
+Cập nhật last_seen_at, giữ nguyên hạn key, cấp lease mới có chữ ký.
+Client nên kiểm tra khi mở, khi quay lại foreground và định kỳ theo refreshAfter.
+
+6. GIẤY PHÉP OFFLINE
+Header: alg=EdDSA, typ=JWT, kid=16 ký tự đầu SHA-256 của public SPKI server.
+Claims có chữ ký:
+  v: 1
+  iss: nemo-license
+  aud: nemo-app
+  sub: licenseId (chuỗi số)
+  device: fingerprint
+  version: version bản ghi license
+  nonce: nonce của yêu cầu challenge, ràng buộc response với client
+  iat: giờ UTC server, Unix seconds
+  exp: min(iat + 86400, licenseExpiresAt)
+  licenseExpiresAt: hạn key, Unix seconds
+Server ký bytes ASCII của base64url(headerJSON) + '.' + base64url(payloadJSON).
+Chữ ký Ed25519 base64url không padding là phần thứ ba.
+Client phải kiểm tra chữ ký bằng khóa pin, alg/typ/kid, iss/aud/v, fingerprint,
+iat/exp, và exp không được vượt hạn key hoặc dài hơn 24 giờ.
+Không dùng dữ liệu JSON ở ngoài token để quyết định quyền dùng offline.
+Hàm kiểm tra tham khảo cho Node: src/lib/license-crypto.ts / verifyLease.
+
+Client cần lưu mốc giờ server đáng tin và theo dõi thời gian đơn điệu để phát hiện
+đồng hồ bị lùi; yêu cầu online khi không xác định được thời gian an toàn. Hàm Node
+tham khảo nhận now từ caller, chưa triển khai phần lưu mốc thời gian trên iOS.
+
+Quy tắc xử lý lỗi client:
+- Mất mạng/503: chỉ dùng token có chữ ký hợp lệ còn hạn; không tự kéo dài exp.
+- 403 invalid_license/license_expired/license_revoked/device_mismatch:
+  ngừng quyền dùng và bỏ token cũ, không lấy token cũ để lờ quyết định server.
+- 400: sửa request. 401 invalid_proof: kiểm tra cặp khóa/chữ ký.
+- 409 invalid_challenge: xin challenge mới. device_in_use: cần admin xử lý.
+- 429: chờ Retry-After, không retry liên tục.
+
+Thu hồi hoặc chuyển thiết bị chặn ngay các lần xác thực online sau đó.
+Máy đang offline vẫn có thể giữ token đã cấp tới exp, tối đa 24 giờ. Version trong
+token không thể tự thông báo việc thu hồi khi offline. Muốn giảm cửa sổ này phải
+rút TTL lease. Không có đảm bảo thu hồi tức thì cho thiết bị mất mạng.
+Sau gỡ liên kết, bất kỳ máy giữ key rõ đều có thể đăng ký lại vào slot trống.
+Nếu không còn tin máy/người dùng cũ, thu hồi key cũ và cấp key mới thay vì chỉ gỡ.
+
+7. LỖI VÀ GIỚI HẠN
+Response lỗi: { "code": "...", "error": "<thông báo>" }
+400: invalid_request / invalid_key / invalid_public_key
+401: invalid_proof
+403: invalid_license / license_revoked / license_expired / device_mismatch
+409: invalid_challenge / device_in_use
+413/415: dữ liệu quá lớn / Content-Type sai
+429: rate_limited (Retry-After: 60)
+503: unavailable (lỗi database hoặc cấu hình ký)
+
+Body tối đa 4096 byte. Không trả key hash, private key hay token admin.
+Rate limit trong MySQL dùng chung các worker:
+- challenge: 600/phút tổng, 60/phút/fingerprint, 60/phút/tham chiếu license/purpose.
+- proof: 1200/phút tổng, 10/phút/challengeId.
+Counter dọn sau 2 giờ; challenge hết hạn được dọn khi tạo challenge mới.
+Khi production cần rate limit theo IP ở Nginx nữa. Ứng dụng không tin X-Forwarded-For
+vì header đó có thể giả nếu proxy không được cấu hình và khóa truy cập đúng.
+Native app không gửi Origin. Request trình duyệt khác Origin bị chặn, không bật CORS.
+
+8. KIỂM THỬ
+npm test (cần Next dev + MySQL local, khóa ký local đã tạo).
+Suite tests/license-api.test.ts mô phỏng client ký bằng cặp khóa thật, gọi HTTP
+và kiểm tra MySQL. Dữ liệu khách/admin/license/device thử được dọn sau kiểm tra.
+Đã thử kích hoạt/verify, chữ ký giả, khác purpose, thử thách hết hạn, replay,
+race hai máy, lease bị sửa, sai khóa server, hết hạn, gia hạn, thu hồi, chuyển máy,
+rate limit và TTL không vượt hạn license. Đây chưa phải kiểm thử iPad/IPA.
+
+KHÔI PHỤC SAU THU HỒI
+POST /api/admin/licenses/{id}/restore với { version } yêu cầu phiên admin và
+Origin hợp lệ. Chỉ nhận trạng thái revoked; khóa bản ghi và kiểm tra version.
+Giữ nguyên mọi thời hạn và thiết bị hiện có; tăng version, ghi license.restored.
+Key pending cũ về pending; key đã bắt đầu tính hạn về active nhưng vẫn bị từ chối
+license_expired nếu hạn cũ đã qua. Khôi phục không gia hạn hoặc tự gắn thiết bị
+đã gỡ. Thiết bị còn liên kết có thể /verify lại bằng licenseId đã lưu.

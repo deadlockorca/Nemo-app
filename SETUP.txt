@@ -1,0 +1,193 @@
+Nemo Admin — đăng nhập + quản lý khách/key/thiết bị (local)
+
+Đã làm:
+- Next.js App Router + TypeScript + Tailwind CSS.
+- Trang đăng nhập tại /, nhận tên đăng nhập hoặc email.
+- Trang tổng quan /admin kiểm tra phiên ở server trước khi đọc dữ liệu.
+- Đăng xuất thu hồi phiên trong MySQL.
+- Mật khẩu băm scrypt; token phiên ngẫu nhiên chỉ lưu bản SHA-256 trong DB.
+- Phiên hết hạn sau 12 giờ; cookie HttpOnly, SameSite=Lax, Secure khi production.
+- Chặn POST khác Origin; tối đa 5 lần thử / tên đăng nhập / 15 phút.
+- Dashboard đếm dữ liệu thật, nhật ký đăng nhập.
+- Migration cho admin, phiên, khách, key, thiết bị, nhật ký.
+
+QUẢN LÝ ĐÃ CÓ
+/admin/customers: thêm, sửa khách; tên, liên hệ, ghi chú; tìm kiếm, phân trang.
+/admin/licenses: cấp key (mặc định 30 ngày), lọc trạng thái, gia hạn, thu hồi.
+/admin/devices: xem thiết bị, gỡ liên kết để chuyển máy, giữ nguyên hạn key.
+/admin/activity: xem lịch sử gồm người thao tác, thời gian, mã, chi tiết.
+API quản trị /api/admin/* yêu cầu phiên admin; POST/PATCH kiểm tra Origin.
+
+QUY TẮC KEY
+- Key mới ở trạng thái active ngay khi cấp cho khách: activated_at = giờ UTC DB,
+  expires_at = thời điểm cấp + số ngày đã chọn. Chưa cần gắn thiết bị để tính hạn.
+- Key đầy đủ chỉ xuất hiện một lần lúc cấp; database chỉ lưu SHA-256 + 8 ký tự cuối.
+- Nếu mất key chưa giao: thu hồi và cấp key mới. Không có chức năng xem lại key.
+- Gia hạn key pending cũ: thêm thời lượng chưa kích hoạt (tối đa tổng 3650 ngày).
+- Gia hạn key active: cộng số ngày vào max(hạn hiện tại, giờ UTC của server).
+- Key revoked có nút Khôi phục; giữ nguyên hạn cũ và liên kết thiết bị hiện có.
+- Key pending cũ được khôi phục về pending; key đã bắt đầu tính hạn trở về active
+  (giao diện vẫn hiện Hết hạn nếu hạn cũ đã qua). Không cộng ngày khi khôi phục.
+- Cần khôi phục trước khi gia hạn key revoked. Mỗi thao tác có kiểm tra version
+  và nhật ký. App đã đăng ký có thể mở lại để xác thực, không cần nhập key lại.
+- Gỡ liên kết thiết bị không đặt lại ngày kích hoạt hay ngày hết hạn.
+- Thao tác gia hạn/thu hồi/gỡ thiết bị có transaction, row lock và kiểm tra version.
+  Nếu hai tab thao tác cùng bản ghi, yêu cầu cũ bị từ chối (409), cần tải lại.
+- Có nút Xóa key với xác nhận: xóa vĩnh viễn key và gỡ liên kết thiết bị; giữ
+  lịch sử thao tác. Key đã xóa không thể khôi phục. Không có nút xóa khách.
+- Mỗi trang 25 bản ghi; tìm tên khách khi danh sách chọn có nhiều hơn 25 khách.
+
+ĐÃ CÓ API CẤP PHÉP
+POST /api/v1/challenge, /api/v1/activate, /api/v1/verify.
+Thiết bị chứng minh giữ khóa riêng Ed25519 bằng thử thách hết hạn sau 5 phút.
+Giấy phép EdDSA/JWT, tối đa 24 giờ và không vượt hạn key; gợi ý kiểm tra mỗi giờ.
+Key mới tính hạn từ lúc cấp trên web; nhập key chỉ gắn thiết bị, giữ nguyên hạn.
+Key pending cũ vẫn theo quy tắc tính hạn từ lần kích hoạt thiết bị đầu tiên.
+Chặn thiết bị khác, key hết hạn/thu hồi, thử thách đã dùng và chữ ký giả.
+Khóa ký private chỉ nằm trên server, trong file quyền 600, đường dẫn qua env.
+
+ĐÃ BUILD/CÀI BẢN IPA LOCAL TEST
+/Users/bowthoois/Documents/Nemo/analysis/nemo-license-ios/Nemo-Key-Test-local.ipa
+App Nemo Key Test cài song song, bundle vn.fractal.nemo-rebuild.license-test.
+Đã test trên iPhone 7 Plus iOS 15.8.8: nhập key mở app, dùng cache khi API ngắt,
+server báo hết hạn thì chặn, khôi phục hạn thì vào app lại không cần nhập lại key.
+Key test #23 hiện đã thu hồi; giữ nguyên trạng thái này khi thử bản mới.
+Server LAN: npm run dev -- --hostname 0.0.0.0
+API trong bản thử: http://192.168.0.10:3000 (cần cùng mạng, Mac bật server).
+App dùng Keychain + nonce + chữ ký Ed25519, không chứa khóa ký private server.
+Xem /Users/bowthoois/Documents/Nemo/analysis/nemo-license-ios/RESULT.txt để build lại và biết phạm vi test.
+
+CHƯA TRIỂN KHAI VPS; chưa kiểm thử iPad/ESign.
+Xem docs/LICENSE-API.txt để biết giao thức, quy tắc offline và giới hạn.
+Thiết bị được tạo trực tiếp bởi test chỉ là dữ liệu kiểm thử, đã dọn sạch.
+Thu hồi/chuyển máy tác động tới API và bản Nemo Key Test; app Nemo cũ chưa có lớp key.
+Giấy phép offline đã cấp có thể còn dùng đến hết exp, tối đa 24 giờ; không thu hồi
+ngay được khi máy không kết nối. Khi nhận lỗi key/thiết bị từ server, client phải
+ngừng dùng giấy phép cũ; chỉ lỗi mạng hoặc 503 mới được dùng offline.
+Dữ liệu client khi phát triển bằng next dev có thể cần tải lại trang sau đổi CSS.
+Không có tài khoản mặc định hay mật khẩu cố định trong source.
+
+MÔI TRƯỜNG LOCAL HIỆN TẠI
+Node.js 24.x. MySQL 8.4 đã có trên máy và đang chạy instance riêng:
+  Database: nemo_admin
+  Host/port: 127.0.0.1:13306
+  Data: web/.local/mysql-data
+  Socket: web/.local/mysql.sock
+  Log: web/.local/mysql.log
+.env có cấu hình app (quyền 600, bị gitignore).
+.local/mysql-root.cnf chỉ dùng quản trị instance local (quyền 600, bị gitignore).
+Không sao chép .local, .env hoặc node_modules lên VPS.
+
+Các lệnh chạy trong thư mục web:
+  npm ci
+  npm run db:migrate       Áp dụng migration còn thiếu, không tự tạo DB/user
+  npm run license:keygen   Tạo cặp khóa ký, từ chối ghi đè khóa hiện có
+  npm run admin:create     Nhập tên, tên hiển thị, mật khẩu ẩn, xác nhận
+  npm run admin:password   Đổi mật khẩu bằng CLI; thu hồi tất cả phiên cũ
+  npm run dev             http://localhost:3000
+  npm run typecheck
+  npm test                Cần web + DB local đang chạy; tự dọn tài khoản thử
+  npm run build
+  npm start               Bản production, yêu cầu APP_URL là HTTPS khi đăng nhập
+
+Để khởi động lại instance MySQL local khi cần (không chạy --initialize lại):
+  mysqld --no-defaults --basedir=/Users/bowthoois/.local/mysql --datadir="$PWD/.local/mysql-data" --socket="$PWD/.local/mysql.sock" --pid-file="$PWD/.local/mysql.pid" --port=13306 --bind-address=127.0.0.1 --mysqlx=OFF --log-error="$PWD/.local/mysql.log"
+Dừng MySQL local:
+  mysqladmin --defaults-file="$PWD/.local/mysql-root.cnf" shutdown
+
+TRÊN AAPANEL (CHƯA THỰC HIỆN)
+1. Dùng MySQL 8.0+ (không mặc định coi MariaDB tương đương).
+2. Tạo database riêng + user riêng. Không mở MySQL ra Internet.
+3. Cấu hình biến môi trường theo .env.example:
+   APP_URL=https://nemoapp.duckdns.org
+   DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD theo aaPanel.
+4. npm ci; npm run db:migrate; npm run admin:create.
+   npm run license:keygen /duong-dan-rieng/license-keys
+   Đặt LICENSE_PRIVATE_KEY_FILE=/duong-dan-rieng/license-keys/private.pem.
+   Khóa private ngoài public/webroot, chỉ user Node đọc được; sao lưu riêng.
+   File public.pem phải được pin trong client trước khi phát hành.
+   npm run build.
+5. Chạy Node.js 24 bằng process manager aaPanel:
+   npm start -- --hostname 127.0.0.1 --port 3000
+6. Nginx reverse proxy tới 127.0.0.1:3000, giữ Host và chuyển tiếp Origin nguyên gốc.
+   Giữ các header Set-Cookie, Cache-Control; không cache trang quản trị.
+7. HTTPS chứng chỉ hợp lệ, tự gia hạn. APP_URL khớp URL truy cập thực tế.
+8. Đặt giới hạn request đăng nhập theo IP tại Nginx (bổ sung cho giới hạn tài khoản).
+9. Sau migration, user runtime chỉ cần SELECT/INSERT/UPDATE/DELETE;
+   có thể dùng user migration riêng có quyền CREATE/ALTER/INDEX/REFERENCES.
+10. Sao lưu database định kỳ và cất khóa ký giấy phép riêng; không tạo lại khóa mỗi lần deploy.
+
+Nếu dùng output standalone: sao chép public và .next/static vào đúng vị trí
+trong .next/standalone trước khi chạy server.js. Dùng npm start với đầy đủ
+project thì không cần bước này.
+
+KIỂM TRA
+39 kiểm tra tự động đã qua (đăng nhập + quản lý + API cấp phép): mật khẩu, truy cập không phiên, khác Origin,
+sai mật khẩu, phiên hợp lệ, token giả, đăng xuất, hết hạn, tài khoản bị khóa,
+giới hạn thử sai; tạo/sửa/tìm khách, giới hạn dữ liệu, key pending, bản băm key,
+gia hạn đồng thời chỉ áp dụng một lần, gia hạn key còn/hết hạn, thu hồi,
+gỡ thiết bị giữ hạn, bộ lọc, phân trang; ký thiết bị, TTL thử thách, chống replay,
+kích hoạt 30 ngày đúng một lần, chống dùng key trên hai máy, kiểm tra chữ ký lease,
+lease không vượt hạn key, gia hạn sau hết hạn, thu hồi và chuyển máy qua API,
+race kích hoạt và rate limiting. Migration chạy lại không tạo trùng bảng.
+Đã thử trực tiếp trên Chrome: thêm khách, chọn khách và cấp key từ giao diện.
+Tài khoản và dữ liệu thử tự động/UI đã được dọn; giữ nguyên admin thật.
+Build production và TypeScript đã qua. npm audit --omit=dev không báo lỗi.
+Chuỗi ESLint vẫn có 5 cảnh báo high ở dependencies phát triển chưa có bản vá;
+không tự hạ Next.js để ép sửa. Kiểm tra lại trước khi triển khai.
+
+CẬP NHẬT GIAO DIỆN CẤP PHÉP 2026-10-24
+Bản mới: /Users/bowthoois/Documents/Nemo/analysis/nemo-license-ios/Nemo-Key-Test-background-local.ipa
+Chỉ nhập key trước kích hoạt đầu tiên. Khi đã lưu đăng ký trong Keychain, các lần
+mở/đưa app lên trước sẽ xác thực tự động; không dựng lại màn hình nhập key.
+Cache hợp lệ cho dùng trong lúc xác thực; không có cache hợp lệ thì chặn thao tác
+trong lúc đợi. Xác thực thất bại hiện thông báo; bấm OK kết thúc app.
+Gia hạn trên server không yêu cầu nhập lại key trên bản cài còn giữ đăng ký.
+Đã thử trên 7 Plus bằng bản USB: kích hoạt #25; mở lại không nhập key; server báo
+hết hạn hiện thông báo; bấm OK thoát; khôi phục hạn mở lại không cần key.
+Key #25 đang active, hạn gốc 30 ngày đã khôi phục. Key #23 vẫn revoked, đã gỡ
+liên kết thiết bị thử cũ; key #24 vẫn pending. Không đổi backend trong bản này.
+Bản đang cài: Nemo-Key-Test-background-usb.ipa; API http://127.0.0.1:3000 qua SSH
+reverse tunnel/cáp. Cần giữ cáp, tunnel và Mac server cho xác thực online.
+Safari và app trên máy đều chưa truy cập được LAN192.168.0.10 dù cùng Wi-Fi;
+chưa khắc phục lỗi LAN. Bản LAN giữ riêng, không dùng bản USB để giao khách.
+Cần cấu hình HTTPS VPS và đóng gói bản phát hành trước khi dùng qua Internet.
+
+KHÔI PHỤC KEY ĐÃ THU HỒI
+Quản lý key: dòng Đã thu hồi có nút Khôi phục và hộp xác nhận.
+Thao tác giữ nguyên key, ngày kích hoạt/hết hạn, thời lượng và liên kết hiện có.
+Key hết hạn cần gia hạn sau khi khôi phục. Không tự gắn lại thiết bị đã gỡ.
+App còn giữ đăng ký mở lại để xác thực, không cần nhập key lại hay cài IPA mới.
+Đã qua 39 kiểm tra tự động và build production/TypeScript; bổ sung kiểm tra
+khôi phục key pending/active/expired, tranh chấp thao tác, phiên/Origin, nhật ký
+và thiết bị cũ verify thành công sau khôi phục bằng cùng licenseId.
+Không thay đổi trạng thái các key thật khi chạy kiểm thử; dữ liệu test tự dọn.
+
+HIỂN THỊ THỜI GIAN KEY
+Cột Thời gian còn lại đếm ngược mỗi giây theo dạng 29 ngày 23:59:59.
+Khi dưới 1 ngày chỉ hiện HH:mm:ss; hết hạn hiện Đã hết hạn. Key pending hiện
+Chưa kích hoạt; key revoked hiện Đã thu hồi. Rê chuột để xem ngày hết hạn gốc.
+Đếm ngược chỉ phục vụ hiển thị theo giờ trình duyệt; server vẫn quyết định hạn.
+
+XÓA KEY
+Quản lý key → Xóa → xác nhận Xóa vĩnh viễn. Có thể xóa key ở mọi trạng thái.
+Key biến mất khỏi danh sách/số đếm, thiết bị được gỡ để có thể dùng key khác.
+Lịch sử license.deleted giữ mã key, khách, 8 ký tự cuối và thông tin thiết bị;
+không lưu raw key hoặc khóa riêng. API từ chối cấp phép mới cho key đã xóa.
+Lease đã cấp vẫn có thể dùng offline đến exp (tối đa 24 giờ), như thu hồi.
+App giữ licenseId cũ sẽ báo không hợp lệ; không tự hiện form nhập key mới.
+Không cần migration hoặc IPA mới cho chức năng xóa trên web.
+
+CẤP KEY TÍNH HẠN NGAY
+Chọn khách và tạo key: key lập tức active và đếm ngược, không qua pending.
+Ngày bắt đầu/hết hạn lấy từ UTC của MySQL, không phụ thuộc đồng hồ trình duyệt.
+Khách nhập key muộn vẫn giữ nguyên hạn; key đã hết hạn không được gắn máy mới.
+Chỉ áp dụng key cấp mới; không tự chuyển các key pending đã tồn tại.
+Không cần migration hoặc IPA mới. Đã qua 42 kiểm tra và build production.
+
+VỊ TRÍ DỰ ÁN WEB
+Dự án đã chuyển sang /Users/bowthoois/Documents/GitHub/Nemo-app.
+Chạy npm, migrations và các lệnh web tại thư mục mới này.
+.env và .local đi cùng dự án; đường dẫn khóa ký/mysql local đã cập nhật.
+/Users/bowthoois/Documents/Nemo/web là symlink tương thích, không phải bản sao.
+Thư mục analysis và các công cụ iPhone vẫn ở /Users/bowthoois/Documents/Nemo.
