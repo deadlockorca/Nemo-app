@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { getDb } from "./db";
 import { tokenHash } from "./password";
 import { LEASE_SECONDS, LICENSE_ISSUER, LICENSE_AUDIENCE, publicIdentity, signLease, signingIdentity, type LeaseClaims } from "./license-crypto";
+import { parseIdentityConfig } from "./identity-config";
 
 export class LicenseApiError extends Error {
   constructor(public code: string, message: string, public status = 400) { super(message); }
@@ -82,6 +83,10 @@ export async function prove(purpose: "activate" | "verify", data: Record<string,
   const signer = signingIdentity();
   const db = await getDb().getConnection();
   try {
+    // The license row serializes competing bindings for the same key. Avoid
+    // gap-locking absent device rows for unrelated keys during simultaneous
+    // first activation; unique indexes still arbitrate the same fingerprint.
+    await db.query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
     await db.beginTransaction();
     const [challenges] = await db.execute<ChallengeRow[]>(`SELECT *, expires_at > UTC_TIMESTAMP(3) AS fresh FROM license_challenges WHERE id = ? FOR UPDATE`, [data.challengeId]);
     const proof = challenges[0];
@@ -123,6 +128,13 @@ export async function prove(purpose: "activate" | "verify", data: Record<string,
     const exp = Math.min(iat + LEASE_SECONDS, licenseExpiresAt);
     if (exp <= iat) throw new LicenseApiError("license_expired", "Key đã hết hạn.", 403);
     const claims: LeaseClaims = { v: 1, iss: LICENSE_ISSUER, aud: LICENSE_AUDIENCE, sub: String(license.id), device: proof.fingerprint, version: current.version, iat, exp, licenseExpiresAt, nonce: JSON.parse(proof.message).nonce };
+    // Read assignment under the already-held license lock. Never use client-supplied IDs.
+    const [assignments] = await db.execute<(RowDataPacket & { device_id: string; registration_uuid: string })[]>(
+      `SELECT device_id, registration_uuid FROM license_identities WHERE license_id = ?`, [license.id],
+    );
+    if (assignments[0]) {
+      claims.identity = parseIdentityConfig({ v: 1, device_id: assignments[0].device_id, uuid: assignments[0].registration_uuid });
+    }
     const token = signLease(claims, signer);
     await db.execute(`DELETE FROM license_challenges WHERE id = ?`, [data.challengeId]);
     await db.commit();

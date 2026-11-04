@@ -1,0 +1,69 @@
+Hồ sơ thiết bị khách hàng — triển khai local ngày 05/11/2026
+
+GIAO DIỆN
+/admin/devices có hai mục:
+- Hồ sơ thiết bị: tạo trước khi cài app, lưu khách hàng, tên dễ nhớ, model,
+  UDID Apple, mã bộ chứng chỉ, hạn chứng chỉ, hạn profile, ghi chú và key.
+- Đã kích hoạt key: danh sách liên kết kích hoạt hiện có; vẫn hỗ trợ gỡ
+  liên kết theo cơ chế trước đây. Fingerprint không được coi là UDID.
+
+Tìm theo tên khách, tên máy, model, UDID, mã bộ ký hoặc mã key. Từ Khách
+hàng có nút Thiết bị; danh sách key cũng hiện hồ sơ đã gắn và tìm được
+bằng UDID hoặc mã bộ ký. Mỗi UDID có một hồ sơ; mỗi key gắn tối đa một
+hồ sơ. Có thể để trống key và tạo hồ sơ trước.
+
+ĐỌC VÀ QUẢN LÝ PROFILE
+Tải .mobileprovision lên trong biểu mẫu thiết bị hoặc tạo bản cài để đọc
+danh sách UDID. Chữ ký CMS, chuỗi Apple và vai trò signer vẫn được kiểm
+tra bởi helper hiện có; không chỉ giải mã plist rồi tin dữ liệu.
+Một UDID: tự điền. Nhiều UDID: quản trị phải chọn đúng máy.
+Profile chỉ có một DeveloperCertificate: đọc được ngày hết hạn của nó.
+Profile có nhiều certificate: chưa suy ra certificate nào ứng với P12.
+Khi tạo bản cài, kiểm tra P12/profile/UDID đầy đủ rồi ghi chính xác ngày
+hết hạn certificate được chọn. Đây không phải kiểm tra thu hồi online.
+
+Tên bộ ký là nhãn do quản trị nhập; không dùng nhãn để xác thực chữ ký.
+Tạo bản cài thành công tự thêm/cập nhật hồ sơ đúng khách + UDID + key.
+Không tự chuyển thiết bị hoặc key giữa hai khách. Giữ tên dễ nhớ, model
+và ghi chú đã nhập. Hồ sơ gắn bản cài không cho đổi UDID hoặc key trong
+biểu mẫu sửa để tránh làm lệch bộ ký; khi đổi máy cần hồ sơ mới.
+Chứng chỉ/P12 và mật khẩu vẫn ở kho mã hóa của luồng cài đặt hiện có.
+Bảng hồ sơ chỉ chứa thông tin quản lý, không chứa private key hoặc P12.
+
+TƯƠNG THÍCH
+Migration 007-device-profiles.sql chỉ tạo bảng mới. Không sửa bảng license,
+device, cặp ID Nemo, key_hash, expires_at hoặc phiên bản key hiện hành.
+Sửa hồ sơ không thay đổi quyền sử dụng. Hồ sơ còn khi gỡ liên kết kích
+hoạt hoặc xóa key; liên kết tới key/bản cài đã xóa sẽ trở về NULL.
+API hồ sơ yêu cầu admin, ghi dữ liệu yêu cầu đúng Origin, kiểm tra phiên
+bản để chặn ghi đè bản sửa đồng thời; lưu lại lịch sử thao tác.
+
+LOCAL VÀ VPS
+Bản xem thử: http://localhost:3117/admin/devices, DB riêng nemo_blank_test.
+Có hồ sơ mẫu iPad Hải. Mẫu ghi nhận UDID đã được chủ hệ thống xác nhận,
+nhưng không sao chép hoặc giả lập key #65 thật trên VPS.
+VPS chưa được cập nhật trong đợt này.
+
+Khi triển khai VPS: sao lưu DB/kho cài đặt, giữ nguyên biến môi trường và
+khóa license đang dùng; chạy các migration còn thiếu đến hết 007 trước
+khi chuyển sang code mới. Không nhập DB local hoặc tạo lại key cũ.
+Migration 007 không tự suy ra UDID từ fingerprint và không tự gán hồ sơ
+cho khách cũ. Quản trị thêm hồ sơ bằng UDID đã đối chiếu, chọn đúng khách
+và key hiện có. Quy trình build/worker Linux xem DEPLOYMENT-LINUX.txt.
+
+KIỂM TRA
+68 kiểm tra MySQL/HTTP/native signing qua khi chạy từng bộ test lần lượt.
+Bao gồm kiểm tra luồng kích hoạt/key cũ, race trong cùng một thao tác,
+gán hai ID, ký IPA thật, link tải, xoay mã cài, CRUD/tìm kiếm hồ sơ mới,
+UDID/key trùng, sai khách, sửa stale, CSRF/admin và profile giả bị từ chối.
+Bổ sung ca tương thích IPA cũ: kích hoạt trước, thêm rồi sửa hồ sơ thiết
+bị, gọi verify bằng payload cũ không có hai ID. Server vẫn trả lease hợp
+lệ không có identity claim, giữ hạn key, version và fingerprint ban đầu.
+Đã kiểm tra profile Apple thật QSCX8W qua API đọc UDID.
+Khi chạy lại bài ký thật trong database có hồ sơ mẫu, dùng bộ test QSCX8W
+(UDID khác mẫu HNF6HG). Không dùng chứng chỉ đang gắn khách khác để tạo
+khách test mới; hệ thống phải từ chối gắn trùng UDID như thiết kế.
+Các file integration test dùng chung MySQL và bộ đếm global nên npm test
+chạy file lần lượt; các ca Promise.all kiểm tra đồng thời vẫn giữ nguyên.
+Đã kiểm tra giao diện Chrome: xem chi tiết, lưu mẫu và tìm bằng nhãn bộ ký.
+Build standalone kiểm tra không chứa .local, .env, P12/profile hay private.pem.

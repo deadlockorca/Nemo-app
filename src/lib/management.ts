@@ -4,23 +4,15 @@ import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/prom
 import { getDb } from "./db";
 import { tokenHash } from "./password";
 import type { Admin } from "./auth";
+import { parseIdentityConfig, type IdentityConfig } from "./identity-config";
 
-export class InputError extends Error {
-  constructor(message: string, public status = 400) { super(message); }
-}
-export function record(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new InputError("Dữ liệu không hợp lệ.");
-  return value as Record<string, unknown>;
-}
+import { InputError, id } from "./validation";
+export { InputError, record, id } from "./validation";
 function text(value: unknown, max: number, required = false) {
   if (value !== undefined && value !== null && typeof value !== "string") throw new InputError("Nội dung phải là văn bản.");
   const result = ((value as string) || "").trim();
   if ((required && !result) || Array.from(result).length > max || /\u0000/.test(result)) throw new InputError(`Nội dung cần ${required ? '1' : '0'}–${max} ký tự.`);
   return result;
-}
-export function id(value: unknown) {
-  if (typeof value !== "string" || !/^[1-9]\d{0,19}$/.test(value) || BigInt(value) > BigInt("18446744073709551615")) throw new InputError("Mã bản ghi không hợp lệ.");
-  return value;
 }
 function days(value: unknown) {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 365) throw new InputError("Số ngày phải từ 1 đến 365.");
@@ -67,6 +59,11 @@ export async function saveCustomer(admin: Admin, data: Record<string, unknown>, 
 export async function createLicense(admin: Admin, data: Record<string, unknown>) {
   const customerId = id(data.customerId);
   const duration = days(data.durationDays ?? 30);
+  let identity: IdentityConfig | undefined;
+  if (data.identity !== undefined) {
+    try { identity = parseIdentityConfig(data.identity); }
+    catch (error) { throw new InputError((error as Error).message); }
+  }
   // 160 random bits; raw keys are returned once and never persisted or logged.
   const rawKey = `NEMO-${randomBytes(20).toString("hex").toUpperCase().match(/.{8}/g)!.join("-")}`;
   return transaction(async (db) => {
@@ -78,9 +75,49 @@ export async function createLicense(admin: Admin, data: Record<string, unknown>)
       [customerId, tokenHash(rawKey), rawKey.slice(-8), duration, duration],
     );
     const newId = String(result.insertId);
-    await audit(db, admin, "license.created", newId, { customerId, durationDays: duration });
+    if (identity) await db.execute(`INSERT INTO license_identities (license_id, device_id, registration_uuid) VALUES (?, ?, ?)`, [newId, identity.device_id, identity.uuid]);
+    await audit(db, admin, "license.created", newId, { customerId, durationDays: duration, hasIdentity: Boolean(identity) });
     return { id: newId, key: rawKey };
   });
+}
+
+export async function saveLicenseIdentity(admin: Admin, licenseId: string, data: Record<string, unknown>) {
+  id(licenseId);
+  let identity: IdentityConfig;
+  try { identity = parseIdentityConfig(data.identity); }
+  catch (error) { throw new InputError((error as Error).message); }
+  return transaction(async (db) => {
+    const [licenses] = await db.execute<(RowDataPacket & { version: number; status: string })[]>(
+      `SELECT version, status FROM licenses WHERE id = ? FOR UPDATE`, [licenseId]);
+    if (!licenses[0]) throw new InputError("Không tìm thấy key.", 404);
+    expectVersion(data.version, licenses[0].version);
+    if (licenses[0].status === "revoked") throw new InputError("Hãy khôi phục key trước khi gán cấu hình.", 409);
+    const [before] = await db.execute<(RowDataPacket & { device_id: string; registration_uuid: string })[]>(
+      `SELECT device_id, registration_uuid FROM license_identities WHERE license_id = ?`, [licenseId]);
+    if (before[0]?.device_id === identity.device_id && before[0]?.registration_uuid === identity.uuid) return { id: licenseId, unchanged: true };
+    // Replacement after activation is explicit, because the next lease changes the app's IDs.
+    const [devices] = await db.execute<RowDataPacket[]>(`SELECT id FROM devices WHERE license_id = ?`, [licenseId]);
+    if (devices.length && data.confirmBoundDevice !== true) throw new InputError("Key đã liên kết thiết bị. Cần xác nhận cấp cấu hình cho lần xác minh tiếp theo.", 409);
+    await db.execute(`INSERT INTO license_identities (license_id, device_id, registration_uuid) VALUES (?, ?, ?)
+      ON DUPLICATE KEY UPDATE device_id = VALUES(device_id), registration_uuid = VALUES(registration_uuid), updated_at = UTC_TIMESTAMP(3)`,
+      [licenseId, identity.device_id, identity.uuid]);
+    await db.execute(`UPDATE licenses SET version = version + 1 WHERE id = ?`, [licenseId]);
+    // Do not copy customer identifiers into the audit trail or server logs.
+    await audit(db, admin, before.length ? "license.identity_updated" : "license.identity_assigned", licenseId,
+      { hasIdentity: true, boundDeviceConfirmed: devices.length > 0 });
+    return { id: licenseId };
+  });
+}
+
+export async function getLicenseIdentity(licenseId: string) {
+  id(licenseId);
+  const [rows] = await getDb().execute<(RowDataPacket & { device_id: string | null; registration_uuid: string | null; version: number; bound: number })[]>(
+    `SELECT l.version, i.device_id, i.registration_uuid, EXISTS(SELECT 1 FROM devices d WHERE d.license_id = l.id) AS bound
+     FROM licenses l LEFT JOIN license_identities i ON i.license_id = l.id WHERE l.id = ?`, [licenseId]);
+  if (!rows[0]) throw new InputError("Không tìm thấy key.", 404);
+  const row = rows[0];
+  return { id: licenseId, version: row.version, bound: Boolean(row.bound),
+    identity: row.device_id ? { v: 1, device_id: row.device_id, uuid: row.registration_uuid } : null };
 }
 
 type License = RowDataPacket & { status: "pending" | "active" | "revoked"; version: number; duration_days: number; activated_at: Date | null; expires_at: Date | null };
@@ -154,26 +191,33 @@ export async function listRecords(section: Section, params: URLSearchParams) {
   if (section === "customers") {
     from = "customers c";
     select = `c.id, c.name, c.contact, c.notes, c.version, c.created_at,
-      (SELECT COUNT(*) FROM licenses l WHERE l.customer_id = c.id) AS license_count`;
+      (SELECT COUNT(*) FROM licenses l WHERE l.customer_id = c.id) AS license_count,
+      (SELECT COUNT(*) FROM customer_device_profiles p WHERE p.customer_id = c.id) AS device_profile_count`;
     order = "c.id DESC";
-    if (q) { where = "(c.name LIKE ? OR c.contact LIKE ?)"; values.push(search, search); }
+    if (q) { where = `(c.name LIKE ? OR c.contact LIKE ? OR EXISTS(SELECT 1 FROM customer_device_profiles p
+      WHERE p.customer_id = c.id AND (p.label LIKE ? OR CONVERT(p.apple_udid USING utf8mb4) LIKE ? OR p.signing_label LIKE ?)))`; values.push(search, search, search, search, search); }
   } else if (section === "licenses") {
-    from = "licenses l JOIN customers c ON c.id = l.customer_id";
+    from = "licenses l JOIN customers c ON c.id = l.customer_id LEFT JOIN customer_device_profiles p ON p.license_id = l.id";
     select = `l.id, l.customer_id, c.name AS customer_name, l.key_hint, l.status, l.duration_days,
       l.activated_at, l.expires_at, l.version, l.created_at,
+      p.id AS device_profile_id, p.label AS device_label, p.apple_udid, p.signing_label,
+      EXISTS(SELECT 1 FROM license_identities i WHERE i.license_id = l.id) AS has_identity,
       CASE WHEN l.status = 'active' AND l.expires_at <= UTC_TIMESTAMP(3) THEN 'expired' ELSE l.status END AS display_status`;
     order = "l.id DESC";
-    if (q) { where += " AND (c.name LIKE ? OR l.key_hint LIKE ? OR CAST(l.id AS CHAR) = ?)"; values.push(search, search, q); }
+    if (q) { where += " AND (c.name LIKE ? OR l.key_hint LIKE ? OR CAST(l.id AS CHAR) = ? OR p.label LIKE ? OR CONVERT(p.apple_udid USING utf8mb4) LIKE ? OR p.signing_label LIKE ?)"; values.push(search, search, q, search, search, search); }
+    const customerId = params.get("customerId");
+    if (customerId) { where += " AND l.customer_id = ?"; values.push(id(customerId)); }
     const status = params.get("status");
     if (status === "expired") where += " AND l.status = 'active' AND l.expires_at <= UTC_TIMESTAMP(3)";
     else if (status === "active") where += " AND l.status = 'active' AND l.expires_at > UTC_TIMESTAMP(3)";
     else if (status === "pending" || status === "revoked") { where += " AND l.status = ?"; values.push(status); }
   } else if (section === "devices") {
-    from = "devices d JOIN licenses l ON l.id = d.license_id JOIN customers c ON c.id = l.customer_id";
+    from = "devices d JOIN licenses l ON l.id = d.license_id JOIN customers c ON c.id = l.customer_id LEFT JOIN customer_device_profiles p ON p.license_id = l.id";
     select = `d.id, d.name, d.fingerprint, d.bound_at, d.last_seen_at, l.id AS license_id,
-      l.version, l.key_hint, c.name AS customer_name`;
+      l.version, l.key_hint, c.id AS customer_id, c.name AS customer_name,
+      p.id AS device_profile_id, p.label AS device_label, p.apple_udid, p.signing_label`;
     order = "d.id DESC";
-    if (q) { where += " AND (c.name LIKE ? OR d.name LIKE ? OR l.key_hint LIKE ?)"; values.push(search, search, search); }
+    if (q) { where += " AND (c.name LIKE ? OR d.name LIKE ? OR l.key_hint LIKE ? OR p.label LIKE ? OR CONVERT(p.apple_udid USING utf8mb4) LIKE ? OR p.signing_label LIKE ?)"; values.push(search, search, search, search, search, search); }
   } else {
     from = "audit_events e LEFT JOIN admins a ON a.id = e.admin_id";
     select = "e.id, e.action, e.target_id, e.details, e.created_at, a.display_name";

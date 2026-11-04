@@ -1,0 +1,189 @@
+NEMO — IPA TRẮNG, CẤP HAI ID VÀ TRANG CÀI ĐẶT
+Triển khai local trên nhánh feat/blank-identity-local, 2026-10-25/26.
+
+PHẠM VI
+Đã làm giao diện admin gán hai ID với key, backend cấp cấu hình trong JWT,
+trang khách nhập mã cài, tải bộ chứng chỉ và hàng đợi tự ký IPA thật.
+Chưa deploy VPS, chưa thay đổi hai key/IPA đang dùng. Các bài thử chạy trên
+MySQL riêng nemo_blank_test, cổng 13317, và khóa ký license mới dành cho test.
+Không dùng khóa license hiện hành để ký token thử. Khóa đó giữ nguyên.
+
+XEM LOCAL
+Trang khách: http://127.0.0.1:3107/install
+Admin key: http://127.0.0.1:3107/admin/licenses
+Admin bản cài: http://127.0.0.1:3107/admin/installations
+Thông tin tài khoản thử, key thử và mã cài thử:
+  .local/blank-identity/preview.json (0600, không đưa lên Git).
+Cặp ID trong dữ liệu thử được tạo ngẫu nhiên, không phải ID hai khách thật.
+Không dùng key thử này với IPA đang trỏ API production.
+
+LUỒNG SỬ DỤNG
+1. Admin thêm khách, cấp key và nhập Device ID 36 ký tự viết hoa cùng UUID
+   đăng ký Nemo 64 ký tự hex đã được đăng ký hợp lệ. Có thể nhập lúc cấp key
+   hoặc dùng nút “Cấu hình app” sau đó. Cập nhật key đã liên kết máy cần xác
+   nhận rõ; không tự đổi ngày hết hạn, key hash hoặc fingerprint thiết bị.
+2. Vào “Cài đặt Nemo”, chọn key đã gán hai ID, nhập tên bản cài và UDID Apple
+   của iPhone/iPad. UDID Apple khác device_id của Nemo và fingerprint license.
+3. Chọn IPA trắng, chứng chỉ .p12, mật khẩu .p12 và .mobileprovision.
+   Server kiểm tra cấu trúc IPA trắng, chữ ký CMS/chuỗi Apple của profile,
+   quyền ký của certificate, hạn sử dụng và UDID nằm trong profile.
+4. Mã cài ngẫu nhiên dạng UUID chỉ hiện một lần. Admin gửi mã này và địa chỉ
+   /install cho khách. CSDL chỉ giữ hash của mã. Không dùng UUID đăng ký Nemo
+   hoặc UDID Apple làm mật khẩu đăng nhập khách.
+5. Khách nhập mã cài, bấm “Chuẩn bị bản cài”. Yêu cầu được lưu vào CSDL.
+   Worker lấy job, ký bằng codesign rồi kiểm tra chữ ký sâu/strict, signer,
+   entitlements và đối chiếu mã/dữ liệu Mach-O ngoài chữ ký với IPA đầu vào.
+6. Khi job sẵn sàng, trang cung cấp nút “Cài Nemo” qua itms-services và một
+   manifest trỏ đến IPA đã ký. iOS vẫn yêu cầu khách xác nhận thao tác cài.
+7. Khách mở Nemo và nhập key kích hoạt. Challenge/proof hợp lệ mới nhận JWT
+   chứa identity. App xác minh chữ ký, lưu cặp ID vào Keychain rồi mở gate.
+   Các ID không được ghi vào IPA trong lúc ký, hoặc đưa vào manifest/trang khách.
+
+IPA ĐẦU VÀO ĐÃ THỬ
+/Users/bowthoois/Documents/Nemo/analysis/nemo-blank-ios/Nemo-Blank-v1.ipa
+SHA-256: 36fe99dfbfd454d0bf684db7bc8365f69237a130bb7519b5a90f0a0394bc6768
+Tên trên máy: Nemo. Bundle: vn.fractal.nemo-rebuild.
+Marker: NemoBlankIdentity-1. Không có device_id/UUID khách nhúng sẵn.
+IPA này giữ API base và public key production đã có; backend local dùng khóa
+thử riêng. Kiểm thử tương thích native dùng fixture JWT từ API local và public
+key test, không cài bản thử lên máy khách hoặc đổi public key production.
+
+CẤU HÌNH HAI ID / TƯƠNG THÍCH
+Migration 005 thêm license_identities theo license_id, không cập nhật key cũ.
+JWT mới có trường tùy chọn bên trong phần đã ký:
+  identity: {v:1, device_id:"<UUID 36 ký tự viết hoa>", uuid:"<64 ký tự hex>"}
+Không lấy hai ID từ request của app. Giá trị chỉ đến từ cấu hình admin.
+Key không có assignment vẫn nhận lease cũ không có identity, cơ chế cũ giữ
+nguyên. IPA trắng giữ gate chờ khi chưa có cấu hình; không dùng ID mặc định.
+/activate và /verify vẫn dùng challenge + proof Ed25519 như trước.
+Transaction kích hoạt dùng READ COMMITTED để tránh gap-lock giữa các key khác
+nhau cùng kích hoạt lần đầu; lock license và unique fingerprint vẫn giữ nguyên.
+Không đổi HTTP contract hay chính sách một key/một danh tính thiết bị.
+JWT được ký để xác thực, không phải mã hóa; không cam kết ID không thể trích
+xuất trên máy đã được kích hoạt. Keychain vẫn lưu qua đóng/mở app.
+
+CHỨNG CHỈ VÀ PHÂN PHỐI
+Bộ HNF6HG của người dùng đã qua bài thử ký thực tế, Team QM58T2A459.
+Tên signer do certificate quyết định; giữ nguyên entitlements mà profile cấp.
+Không sửa nội dung certificate/profile để giả Team hoặc thêm UDID ngoài quyền.
+Bộ HNF6HG là Development. Việc cài qua USB trước đây không chứng minh cài OTA
+trên Safari đã thành công. Development có thể yêu cầu Developer Mode; profile
+Ad Hoc Distribution và kiểm thử Safari thực tế phù hợp trước khi phát hành.
+Nếu profile chứa nhiều máy, IPA có thể được iOS cho phép cài trên các máy đó;
+chọn một UDID ở trang admin không thu hẹp profile đã được Apple ký.
+
+BẢO VỆ VÀ GIỚI HẠN
+- .p12, mật khẩu và profile được lưu trong gói AES-256-GCM có AAD gắn với mã
+  tệp. INSTALL_STORAGE_KEY là bí mật 32 byte hex, tách khỏi kho tệp public.
+- Dữ liệu ở INSTALL_STORAGE_DIR ngoài public; thư mục 0700, tệp 0600.
+- Keychain ký tạm đặt trong thư mục tạm hệ điều hành. Dùng lock chung theo OS
+  user, phục hồi danh sách Keychain và xóa Keychain sau khi ký, kể cả lỗi thường.
+  Nếu tiến trình bị kill -9/máy mất điện, kiểm tra/dọn thư mục nemo-keychain-*
+  và danh sách Keychain trước khi khởi động lại worker. Không thay trust settings.
+- Không ghi mật khẩu/.p12/hai ID vào log. apple-chain.pem chỉ có CA công khai
+  của Apple, SHA-256 a2ec0ec0a1db254ff0a74643e4d1975339c7b3ebb692b2e17ce871f6a65d4c3d.
+  Kiểm tra chữ ký/chuỗi offline không thay thế kiểm tra thu hồi chứng chỉ online.
+- Session khách HttpOnly, SameSite=Strict, 6 giờ; Secure khi APP_URL là HTTPS.
+- Link manifest/IPA có token ngẫu nhiên 256 bit, lưu hash, hạn tối đa 30 phút
+  và không quá hạn key. Installer iOS không cần cookie trình duyệt để tải.
+- Tải hỗ trợ GET/HEAD/Range; no-store, no-referrer. Token tải là bearer secret:
+  cần tắt/che access log chứa /api/install/download/ ở reverse proxy và máy web.
+- Cấp lại mã cài hủy mã cũ, session và link cũ. Thu hồi bản cài chặn tải nhưng
+  không tự xóa app đã cài hoặc thu hồi key license. Key hết hạn/thu hồi chặn tải.
+- Job được ghi bền vững, có claim/heartbeat; job dở quá 20 phút chuyển failed.
+  Retry tối đa 5 lần, cách ít nhất 30 giây. Các lượt prepare đồng thời tái dùng
+  cùng job. Link cài không chứng minh app đã được thiết bị cài hoặc kích hoạt.
+- Giới hạn upload: IPA nén 150 MB, .p12 1 MB, profile 2 MB; tổng body 154 MB;
+  kiểm tra đường dẫn ZIP/symlink/trùng entry/CRC, tối đa giải nén 768 MB.
+- Danh sách admin hiện 100 bản gần nhất; bộ chọn hiện 200 key đã gán ID gần
+  nhất. Phiên local chưa có thư viện IPA dùng chung hoặc dọn artifact tự động.
+  Tệp nguồn và gói ký được giữ để tái tải; theo dõi dung lượng và dọn có kiểm soát.
+
+CHẠY LẠI LOCAL ĐÃ CẤU HÌNH
+Từ /Users/bowthoois/Documents/GitHub/Nemo-app:
+  node scripts/local-identity.mjs npm run db:migrate
+  node scripts/local-identity.mjs npm run dev -- --hostname 127.0.0.1 --port 3107
+  node scripts/local-identity.mjs npm run signing:worker
+Wrapper buộc DB localhost/nemo_blank_test và đường dẫn khóa ký test riêng.
+MySQL test riêng nằm ở .local/blank-identity/mysql-data. Nếu cần khởi động lại:
+  /Users/bowthoois/.local/mysql/bin/mysqld --no-defaults \
+    --datadir="$PWD/.local/blank-identity/mysql-data" \
+    --socket="$PWD/.local/blank-identity/mysql.sock" \
+    --pid-file="$PWD/.local/blank-identity/mysql.pid" \
+    --log-error="$PWD/.local/blank-identity/mysql.log" \
+    --bind-address=127.0.0.1 --port=13317 --mysqlx=0 --default-time-zone=+00:00
+Không chạy song song hai mysqld trên cùng datadir, không dùng datadir cũ.
+
+KIỂM TRA
+Kết quả cuối: 59/59 bài web/API, 276 assertions native, JWT API qua verifier
+Objective-C, lint, typecheck, build đều đạt. Bộ ký HNF6HG được dùng thật; gói
+nguồn và các IPA cũ giữ nguyên SHA-256. Build có postbuild loại .env mà Next
+tự sao chép; kiểm tra artifact từ chối .local, .env, private.pem, .p12 và
+.mobileprovision. Chỉ CA Apple công khai cùng helper cố định được đóng gói.
+  node scripts/local-identity.mjs npm test
+  node scripts/local-identity.mjs npm run typecheck
+  npm run lint
+  node scripts/local-identity.mjs npm run build
+  node scripts/local-identity.mjs node scripts/check-install-build.mjs
+  node scripts/local-identity.mjs python3 scripts/check-native-contract.py \
+    /Users/bowthoois/Documents/Nemo/analysis/nemo-blank-ios
+  python3 /Users/bowthoois/Documents/Nemo/analysis/nemo-blank-ios/tests/run.py
+Bài ký thực tế chỉ chạy khi có INSTALL_TEST_IPA/P12/PROFILE/UDID/PASSWORD trong
+môi trường thử riêng. Tắt worker chạy nền trước khi chạy suite này để test tự
+lấy job, rồi bật lại sau. Không chạy integration test vào DB production.
+Đã kiểm tra trên giao diện Chrome: nhập mã, prepare, polling đến ready; danh
+sách admin, biểu mẫu tải bộ tệp và trang key. Chưa có bằng chứng cài OTA bằng
+Safari/HTTPS và kích hoạt IPA trắng trên iPad thật trong đợt local này.
+
+TRƯỚC KHI ĐƯA LÊN VPS
+Bước triển khai VPS là một đợt riêng, chưa thực hiện.
+Cần sao lưu DB/khóa hiện hành, áp dụng hai migration bổ sung và giữ nguyên khóa
+ký license mà app cũ đang pin. Không dùng khóa test local thay cho khóa đó.
+Trang/manifest/IPA phải ở HTTPS với certificate được iOS tin cậy. Reverse proxy
+cần cho phép upload >=154 MB, timeout kiểm tra tệp, streaming/range và che log
+URL tải; không cache response có token. Không phục vụ thư mục chứng chỉ tĩnh.
+Worker đã có hai bộ ký: Apple security/codesign trên macOS và zsign trên Linux.
+VPS Linux không cần Mac trực tuyến. Xem docs/DEPLOYMENT-LINUX.txt về build zsign
+từ commit cố định, Python, kho tệp riêng và systemd worker. Không chỉ chép web
+rồi bỏ qua worker. Cài Python dependency theo scripts/ios/requirements.txt.
+Thử cài Safari trên đúng iPad qua HTTPS, mở app nhập key thử và xác nhận request
+mang đúng hai ID, đóng/mở vẫn lưu, key hết hạn/thu hồi bị chặn. Chỉ sau các bước
+đó mới chuyển khách mới sang luồng mới; giữ nguyên hai khách cũ.
+
+Nguồn Apple về manifest, itms-services và yêu cầu HTTPS:
+https://support.apple.com/guide/deployment/depce7cefc4d/web
+
+SỬA LỖI PROFILE QSCX8W — 2026-10-26
+QSCX8W có CMS và chuỗi Apple hợp lệ nhưng bị từ chối ở kiểm tra vai trò signer:
+validator cũ chỉ nhận marker 1.2.840.113635.100.4.11 (OS X provisioning profile,
+được quan sát ở HNF6HG). QSCX8W dùng signer Apple iPhone OS Provisioning Profile
+Signing với marker 1.2.840.113635.100.6.58. Đã nhận cả hai marker trên đúng một
+signer của CMS đã xác minh; không bỏ kiểm tra chữ ký hoặc đổi trust anchor.
+Nguồn đối chiếu marker OS X trong mã Security công khai của Apple:
+https://github.com/apple-oss-distributions/Security/blob/main/OSX/sec/Security/SecPolicy.c
+Marker iPhone được đọc trực tiếp từ signer đã xác minh của QSCX8W.
+8 bài regression CMS đạt: hai vai trò hợp lệ, sai/thiếu vai trò, payload bị sửa,
+CA không tin cậy, nhiều signer, payload không phải plist. Cả hai profile thật
+QSCX8W và HNF6HG qua xác minh; bản sửa UDID bị từ chối. Có thể chạy lại bằng
+Python đã cài cryptography: scripts/ios/test_profile.py --profile <profile>.
+Đã upload chính IPA trắng/.p12/password/profile QSCX8W tới API web local và
+nhận HTTP 201, Team UD6GF9365G, một UDID, chế độ ad-hoc. Bản ghi và tệp của lượt
+thử đã được dọn theo ID riêng; không sửa key/bản cài khách đang dùng. Chưa cài
+hoặc khẳng định đã ký IPA QSCX8W từ lượt kiểm tra upload này; VPS giữ nguyên.
+
+SỬA LỖI NHẬP P12 KHI KÝ QSCX8W — 2026-10-26
+Lần chuẩn bị thực tế sau đó báo security_import_failed: Python đọc được P12
+và mật khẩu nhưng security import của macOS báo MAC verification failed.
+Đã chuyển cùng private key/certificate/chain sang PKCS12 tương thích macOS
+(PBESv1 SHA1/3DES, MAC SHA1), mật khẩu tạm ngẫu nhiên. Chỉ bản sao tạm dùng
+định dạng này; tệp upload trong kho vẫn bọc AES-256-GCM, không thay tệp gốc.
+Bản sao và keychain tạm được dọn sau khi ký. Kiểm tra profile, UDID và chứng
+chỉ vẫn giữ nguyên; IPA ký xong vẫn qua codesign --verify --deep --strict và
+so sánh nội dung ngoài chữ ký. Ba test chuyển P12 giữ nguyên key/cert/chain,
+từ chối sai mật khẩu và thiếu private key; cộng tám test CMS đều đạt.
+Đã nhập thành công QSCX8W vào Keychain tạm và chạy lại đúng job bị lỗi tới
+ready. SHA-256 IPA đầu ra:
+ece0ac33171962abefc7bb0f59c99ea6311756a148916a44d96ff93b9d86ca70
+Chưa xác nhận cài OTA thành công trên thiết bị thật. Không cập nhật VPS.
+Nguồn định dạng PKCS12 tương thích macOS:
+https://cryptography.io/en/stable/hazmat/primitives/asymmetric/serialization/

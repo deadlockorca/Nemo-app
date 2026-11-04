@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { currentAdmin } from "@/lib/auth";
 import { sameOrigin } from "@/lib/http";
-import { createLicense, changeLicense, InputError, listRecords, record, releaseDevice, saveCustomer, type Section } from "@/lib/management";
+import { createLicense, changeLicense, getLicenseIdentity, saveLicenseIdentity, InputError, listRecords, record, releaseDevice, saveCustomer, type Section } from "@/lib/management";
 
 const sections: Section[] = ["customers", "licenses", "devices", "activity"];
 const json = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -29,6 +29,10 @@ async function handle(request: Request, context: Context) {
     if (request.method !== "GET" && !sameOrigin(request)) return json({ error: "Yêu cầu không hợp lệ." }, 403);
     const parts = (await context.params).segments;
     const [section, id, operation] = parts;
+    if (parts.length === 3 && section === "licenses" && operation === "identity") {
+      if (request.method === "GET") return json(await getLicenseIdentity(id));
+      if (request.method === "POST") return json(await saveLicenseIdentity(admin, id, await body(request)));
+    }
     if (request.method === "GET" && parts.length === 1 && sections.includes(section as Section)) {
       return json(await listRecords(section as Section, new URL(request.url).searchParams));
     }

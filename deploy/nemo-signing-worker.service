@@ -1,0 +1,26 @@
+[Unit]
+Description=Nemo private IPA signing worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nemo
+Group=nemo
+WorkingDirectory=/opt/nemo/app/current
+EnvironmentFile=/opt/nemo/app/current/.env
+Environment=NODE_ENV=production
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/node /opt/nemo/app/current/node_modules/tsx/dist/cli.mjs scripts/signing-worker.ts
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=660
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/nemo/installations
+
+[Install]
+WantedBy=multi-user.target

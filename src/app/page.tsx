@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { currentAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   return (
     <main className="login-shell">
       <section className="login-story" aria-label="Nemo Admin">
-        <a className="brand" href="/" aria-label="Nemo Admin"><span className="brand-icon">n.</span> nemo<span className="brand-label">ADMIN</span></a>
+        <Link className="brand" href="/" aria-label="Nemo Admin"><span className="brand-icon">n.</span> nemo<span className="brand-label">ADMIN</span></Link>
         <div className="story-copy">
           <span className="eyebrow">KHÔNG GIAN QUẢN TRỊ</span>
           <h1>Mọi quyền truy cập.<br />Một nơi quản lý.</h1>

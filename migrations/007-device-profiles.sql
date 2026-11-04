@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS customer_device_profiles (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  customer_id BIGINT UNSIGNED NOT NULL,
+  license_id BIGINT UNSIGNED NULL UNIQUE,
+  label VARCHAR(120) NOT NULL,
+  model VARCHAR(80) NULL,
+  apple_udid VARCHAR(40) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
+  signing_label VARCHAR(120) NULL,
+  certificate_expires_at DATETIME(3) NULL,
+  profile_expires_at DATETIME(3) NULL,
+  installation_id CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NULL,
+  notes TEXT NULL,
+  version INT UNSIGNED NOT NULL DEFAULT 1,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  CONSTRAINT fk_device_profile_customer FOREIGN KEY (customer_id) REFERENCES customers(id),
+  CONSTRAINT fk_device_profile_license FOREIGN KEY (license_id) REFERENCES licenses(id) ON DELETE SET NULL,
+  CONSTRAINT fk_device_profile_install FOREIGN KEY (installation_id) REFERENCES ios_installations(id) ON DELETE SET NULL,
+  INDEX idx_device_profile_customer (customer_id, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

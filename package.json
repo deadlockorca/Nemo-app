@@ -10,9 +10,11 @@
     "typecheck": "next typegen && tsc --noEmit",
     "db:migrate": "tsx scripts/migrate.ts",
     "admin:create": "tsx scripts/create-admin.ts",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
     "admin:password": "tsx scripts/change-password.ts",
-    "license:keygen": "tsx scripts/license-keygen.ts"
+    "license:keygen": "tsx scripts/license-keygen.ts",
+    "signing:worker": "tsx scripts/signing-worker.ts",
+    "postbuild": "node scripts/prepare-standalone.mjs"
   },
   "dependencies": {
     "mysql2": "^3.24.6",

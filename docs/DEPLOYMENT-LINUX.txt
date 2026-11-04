@@ -1,0 +1,89 @@
+NEMO — CHUẨN BỊ TRIỂN KHAI LINUX
+2026-10-26. Đây là hướng dẫn/bản mẫu; chưa thực hiện trên VPS.
+Cập nhật 05/11/2026: bổ sung quản lý hồ sơ thiết bị; trước khi đưa code mới
+lên chạy cần áp dụng migration 007-device-profiles.sql. Xem DEVICE-PROFILES.txt.
+
+NGUYÊN TẮC GIỮ DỊCH VỤ ĐANG DÙNG
+Giữ DB, tài khoản admin, dữ liệu key/device và LICENSE_PRIVATE_KEY_FILE hiện
+hành. Không chạy license:keygen, admin:create hoặc nhập DB test trên VPS.
+Giữ public key/API base trong IPA cũ. Hai ID chỉ là cấu hình tùy chọn trên key
+mới, không tự ghi đè assignment của key đang dùng. Migration 005/006/007 bổ
+sung bảng; kiểm tra checksum migration cũ và sao lưu trước khi áp dụng.
+IPA cũ đã ghim hai ID tiếp tục dùng /api/v1/challenge, activate và verify.
+Không bắt key cũ có dòng license_identities hoặc hồ sơ UDID để xác minh.
+Thêm hồ sơ quản lý và gắn key hiện có không được gỡ liên kết kích hoạt,
+đổi fingerprint, version, ngày hết hạn hoặc bắt khách cài lại app.
+Không upload .env, .local, chứng chỉ của lượt thử, DB test hoặc khóa test.
+
+MÔI TRƯỜNG
+Node 24.x, MySQL hiện hành và Python 3.11+. Ubuntu/Debian cần g++, make,
+pkg-config, libssl-dev, openssl, git, python3-venv. Chạy ứng dụng và worker bằng
+user riêng, không chạy root. Các đường dẫn dưới là mẫu, cần khớp VPS thực tế.
+
+1. Tạo release mới, cài npm ci (có tsx để chạy worker); chưa đổi release live.
+2. python3 -m venv /opt/nemo/python
+   /opt/nemo/python/bin/pip install -r scripts/ios/requirements.txt
+3. sh scripts/ios/build-zsign.sh /opt/nemo/zsign
+   Build từ commit cố định 9299685bab7ef99827e06e5dfda93af747386590 của
+   https://github.com/zhlynn/zsign (MIT), phiên bản 1.1.3. Không lấy nhánh latest
+   hoặc tệp binary do khách upload. Cài bằng user có quyền ghi thư mục đích.
+4. Bổ sung biến runtime, giữ nguyên biến DB/khóa license hiện hành:
+     APP_URL=https://<tên-miền-thật>
+     INSTALL_STORAGE_DIR=/var/lib/nemo/installations
+     INSTALL_STORAGE_KEY=<32 byte ngẫu nhiên, 64 ký tự hex>
+     IOS_SIGN_PYTHON=/opt/nemo/python/bin/python
+     IOS_SIGN_BACKEND=zsign
+     IOS_ZSIGN_BIN=/opt/nemo/zsign/bin/zsign
+   Web và worker cùng dùng DB, kho tệp và khóa mã hóa. Kho 0700/tệp 0600;
+   sao lưu INSTALL_STORAGE_KEY riêng cùng các tệp đã mã hóa. Không đổi khóa này
+   khi đã có chứng chỉ lưu trong kho nếu chưa có bước chuyển mã hóa.
+5. Sao lưu DB và cấu hình live; kiểm tra rollback rồi chạy db:migrate bằng
+   chính cấu hình VPS. Không chép schema/data local đè lên DB hiện hành.
+6. npm run build (postbuild kiểm tra standalone không chứa bí mật).
+   Bật thử trên cổng nội bộ riêng; kiểm tra đăng nhập/API key cũ và key test
+   mới trước khi chuyển reverse proxy. Nếu cần rollback code, giữ bảng mới;
+   không xóa bảng/drop DB hoặc phục hồi DB gây mất các request mới.
+7. Nginx/aaPanel: HTTPS tin cậy, proxy đúng APP_URL; upload ít nhất 160 MB,
+   timeout kiểm tra tệp đủ dài; không cache API, manifest, IPA có token;
+   không đưa kho chứng chỉ vào webroot và không ghi URL bearer vào access log.
+8. deploy/nemo-signing-worker.service là mẫu systemd. Sửa User/Group, đường
+   dẫn Node/release/env và ReadWritePaths đúng thực tế trước khi cài. Worker
+   phải chạy bền và tự khởi động lại; không chạy ký trong request Next.js.
+9. Dùng key thử riêng trên VPS, profile đúng UDID, nhập mã -> ký -> tải manifest
+   và IPA qua HTTPS. Xác nhận cài/mở trên iPad thật và kích hoạt lấy đúng hai ID.
+   Kiểm tra một key cũ vẫn hoạt động; chỉ khi đạt mới mở luồng cho khách mới.
+
+KIỂM TRA KÝ LINUX
+Helper chọn zsign trên Linux khi IOS_SIGN_BACKEND=auto; macOS vẫn chọn Apple
+codesign. Có thể ép zsign trên Mac để đối chiếu. Tệp private key tạm 0600 nằm
+trong thư mục riêng, xóa sau lời gọi công cụ; không đưa password upload vào
+argv/log. Gói chứng chỉ lưu lâu dài vẫn được bọc AES-256-GCM.
+Sau ký, verify.py kiểm tra CMS/chuỗi Apple, signer đúng profile, SHA256 từng
+trang mã, các special slot, entitlements XML/DER, và resource seal của các bundle.
+OpenSSL không hiểu các critical role marker của Apple: chỉ cho phép danh sách
+OID xác định, từ chối critical extension khác trước khi dùng -ignore_critical.
+Không dùng -noverify, không bỏ kiểm tra profile CMS hoặc UDID.
+Cuối cùng so mã/dữ liệu Mach-O và tài nguyên với IPA gốc; chỉ chữ ký và
+embedded.mobileprovision được đổi. Bộ kiểm tra cố ý hỗ trợ cấu trúc IPA trắng
+hiện tại; cấu trúc/hash/signature format lạ sẽ bị từ chối thay vì cho qua.
+
+NGUỒN
+https://github.com/zhlynn/zsign/tree/9299685bab7ef99827e06e5dfda93af747386590
+https://github.com/apple-oss-distributions/Security/blob/main/OSX/sec/Security/SecPolicy.c
+
+KẾT QUẢ THỬ LOCAL — 2026-10-26
+Cloudflare Quick Tunnel đã dừng, URL cũ trả HTTP 530, không còn tiến trình
+cloudflared. APP_URL local đã trở lại http://192.168.0.17:3107.
+Đã build và chạy bộ ký trong VM Ubuntu 24.04 aarch64, OpenSSL 3, Python 3.12,
+cryptography 50.0.1. VM chỉ chia sẻ thư mục thử riêng, không mount toàn bộ home.
+Cả QSCX8W và HNF6HG ký đủ 47 Mach-O, qua verifier trên Ubuntu và codesign
+--verify --deep --strict trên Mac. Mỗi gói bị sửa code page, CodeDirectory,
+entitlements, CMS, resource hoặc kiểm tra bằng signer khác đều bị từ chối.
+Đã thử script build-zsign.sh trên Ubuntu và JSON contract package.py với bộ ký
+auto chọn theo Linux. Web/API 59/59, Python 16/16, lint và production build đạt;
+postbuild xác nhận không đưa bí mật vào standalone. Cơ chế key cũ qua regression.
+Đây là bằng chứng ký/kiểm tra gói, chưa phải cài OTA trên iPad từ VPS. Chưa
+truy cập hay cập nhật VPS; không đổi hai key khách đang dùng.
+SHA-256 IPA thử ký trên Ubuntu (chỉ là artifact thử, không upload làm IPA trắng):
+  QSCX8W: f0a5f3e084624ad5727bca1ca343cd19cd76291d2e8916191ca065545bae57a2
+  HNF6HG: 86d4c9336c653a00895685b4b3329d2ae0d47cd7b034b7ecf1a850d3330aa9f2

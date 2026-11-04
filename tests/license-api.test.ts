@@ -20,7 +20,7 @@ type Device = ReturnType<typeof identity>;
 const post = (path: string, data: unknown) => fetch(new URL(`/api/v1/${path}`, base), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
 
 // Check the signed bytes against a trusted local public key, not response-provided key material.
-const trustedPublicKey = createPublicKey(readFileSync(new URL("../.local/license-keys/public.pem", import.meta.url)));
+const trustedPublicKey = createPublicKey(readFileSync(process.env.TEST_LICENSE_PUBLIC_KEY_FILE || new URL("../.local/license-keys/public.pem", import.meta.url)));
 
 test("signed device activation and lease lifecycle", async (t) => {
   const db = getDb();

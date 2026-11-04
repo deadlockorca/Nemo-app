@@ -23,6 +23,8 @@
 # misc
 .DS_Store
 *.pem
+!scripts/ios/apple-chain.pem
+__pycache__/
 
 # debug
 npm-debug.log*
@@ -41,3 +43,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.next-identity/
+.next-device-profiles/
