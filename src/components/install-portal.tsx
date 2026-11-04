@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { formatDate } from "@/lib/management-types";
 import type { CustomerInstall } from "@/lib/installation-types";
 
 type InstallLink = { installUrl: string; https: boolean };
@@ -32,6 +33,14 @@ export function InstallPortal() {
     const timer = setInterval(() => { if (!document.hidden) void request("status").then(setCurrent).catch(showError); }, 3000);
     return () => clearInterval(timer);
   }, [current?.status, request, showError]);
+  useEffect(() => {
+    if (!current) return;
+    const check = () => { void request("status").then(setCurrent).catch(showError); };
+    const visible = () => { if (!document.hidden) check(); };
+    const timer = setTimeout(check, (Math.max(0, current.expiresIn) + 1) * 1000);
+    document.addEventListener("visibilitychange", visible);
+    return () => { clearTimeout(timer); document.removeEventListener("visibilitychange", visible); };
+  }, [current, request, showError]);
   const loadLink = useCallback(async () => {
     try { setLink(await request("link", {})); setError(""); }
     catch (e) { showError(e); }
@@ -40,8 +49,7 @@ export function InstallPortal() {
     if (current?.status !== "ready") return;
     let live = true;
     void request("link", {}).then((result) => { if (live) { setLink(result); setError(""); } }).catch((e) => { if (live) showError(e); });
-    const timer = setInterval(() => { if (!document.hidden) void loadLink(); }, 25 * 60 * 1000);
-    return () => { live = false; clearInterval(timer); };
+    return () => { live = false; };
   }, [current?.status, loadLink, request, showError]);
   async function login(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); if (busy) return;
@@ -61,6 +69,7 @@ export function InstallPortal() {
       <p className="eyebrow">NEMO CHO IPHONE & IPAD</p><h1>{current ? statusText[current.status] || "Cài đặt Nemo" : "Nemo, sẵn sàng trên máy bạn."}</h1>
       {checking ? <p className="install-description" role="status">Đang kiểm tra phiên cài đặt…</p> : current ? <>
         <p className="install-description">{current.label}<br />Phiên bản {current.version} · Máy có UDID kết thúc bằng <strong>{current.deviceSuffix}</strong></p>
+        <p className="install-hint">Quyền tải bản cài hết hạn lúc <strong>{formatDate(current.expiresAt)}</strong>. Cần tải lại sau thời điểm này, hãy liên hệ người cấp mã mới.</p>
         <ol className="install-steps"><li className="step-done"><span>1</span>Mã cài hợp lệ</li><li className={current.status === "ready" ? "step-done" : ""}><span>2</span>Chuẩn bị bản cài</li><li><span>3</span>Cài Nemo & nhập key</li></ol>
         {(current.status === "queued" || current.status === "signing") && <div className="install-progress" role="status"><span className="install-spinner" />{current.status === "queued" ? "Bản cài đang xếp hàng. Bạn có thể giữ trang này mở." : "Đang ký bản cài cho máy của bạn. Vui lòng chờ một chút."}</div>}
         {current.error && <div className="error-box" role="alert">{current.error}</div>}
@@ -73,7 +82,7 @@ export function InstallPortal() {
           {current.development && <p className="install-hint">Bộ chứng chỉ Development có thể yêu cầu bật Chế độ nhà phát triển trên máy.</p>}
         </>}
         <button className="install-text-button" disabled={busy} onClick={async () => { try { await request("logout", {}); setCurrent(null); setLink(null); setError(""); } catch (e) { setError((e as Error).message); } }}>Dùng mã cài khác</button>
-      </> : <><p className="install-description">Nhập mã cài bạn được cấp để nhận bản Nemo dành cho thiết bị của mình.</p><form className="login-form" onSubmit={login}><label htmlFor="install-code">Mã cài đặt</label><input id="install-code" name="code" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" spellCheck={false} autoCapitalize="none" maxLength={100} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required disabled={busy} /><button className="primary-button" disabled={busy}>{busy ? "Đang kiểm tra…" : "Tiếp tục"}<span aria-hidden="true">→</span></button></form><p className="install-hint">Mã cài dùng để tải app. Key kích hoạt sẽ được nhập trong Nemo sau khi cài.</p></>}
+      </> : <><p className="install-description">Nhập mã cài bạn được cấp để nhận bản Nemo dành cho thiết bị của mình.</p><form className="login-form" onSubmit={login}><label htmlFor="install-code">Mã cài đặt</label><input id="install-code" name="code" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" spellCheck={false} autoCapitalize="none" maxLength={100} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required disabled={busy} /><button className="primary-button" disabled={busy}>{busy ? "Đang kiểm tra…" : "Tiếp tục"}<span aria-hidden="true">→</span></button></form><p className="install-hint">Mã cài có hiệu lực 15 phút kể từ lúc được cấp, dùng để tải app. Key kích hoạt sẽ được nhập trong Nemo sau khi cài.</p></>}
       {error && <div className="error-box" role="alert">{error}</div>}
     </section><footer className="install-footer">Cần hỗ trợ? Liên hệ người đã cấp mã cài cho bạn.</footer>
   </main>;

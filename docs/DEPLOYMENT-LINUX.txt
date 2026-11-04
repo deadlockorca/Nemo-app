@@ -2,6 +2,11 @@ NEMO — CHUẨN BỊ TRIỂN KHAI LINUX
 2026-10-26. Đây là hướng dẫn/bản mẫu; chưa thực hiện trên VPS.
 Cập nhật 05/11/2026: bổ sung quản lý hồ sơ thiết bị; trước khi đưa code mới
 lên chạy cần áp dụng migration 007-device-profiles.sql. Xem DEVICE-PROFILES.txt.
+Cập nhật thời hạn mã cài: áp dụng thêm 008-install-code-expiry.sql trước khi
+chạy bản có giới hạn 15 phút. Migration chỉ thêm hạn mã cài và giới hạn các
+phiên/link tải hiện có; không đổi key, hai ID, binding hoặc thời hạn license.
+Mã đang tồn tại được thêm 15 phút từ lúc migration chạy. Sau đó dùng Cấp mã
+mới để mở lại 15 phút, tái dùng IPA đã ký. App đã cài không bị ảnh hưởng.
 
 NGUYÊN TẮC GIỮ DỊCH VỤ ĐANG DÙNG
 Giữ DB, tài khoản admin, dữ liệu key/device và LICENSE_PRIVATE_KEY_FILE hiện

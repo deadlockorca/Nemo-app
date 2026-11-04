@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { appOrigin, sameOrigin } from "@/lib/http";
 import { getDb } from "@/lib/db";
 import { tokenHash } from "@/lib/password";
-import { INSTALL_COOKIE, INSTALL_SESSION_SECONDS, installationStatus, issueDownload, loginInstallation, queueInstallation } from "@/lib/installations";
+import { INSTALL_COOKIE, installationStatus, issueDownload, loginInstallation, queueInstallation } from "@/lib/installations";
 import { installFailure, installJson, installJsonBody } from "@/lib/install-http";
 export const runtime = "nodejs";
 type Context = { params: Promise<{ action: string }> };
@@ -21,7 +21,7 @@ export async function POST(request: Request, context: Context) {
     if (action === "login") {
       const result = await loginInstallation(body.code);
       const response = installJson({ ok: true });
-      response.cookies.set(INSTALL_COOKIE, result.token, { httpOnly: true, secure: new URL(appOrigin()).protocol === "https:", sameSite: "strict", path: "/", maxAge: INSTALL_SESSION_SECONDS });
+      response.cookies.set(INSTALL_COOKIE, result.token, { httpOnly: true, secure: new URL(appOrigin()).protocol === "https:", sameSite: "strict", path: "/", maxAge: result.expiresIn });
       return response;
     }
     if (action === "logout") {
@@ -34,7 +34,7 @@ export async function POST(request: Request, context: Context) {
     if (action === "link") {
       const result = await issueDownload(token);
       const manifest = new URL(`/api/install/download/${result.token}/manifest.plist`, appOrigin()).href;
-      return installJson({ installUrl: `itms-services://?action=download-manifest&url=${encodeURIComponent(manifest)}`, expiresIn: result.expiresIn, https: manifest.startsWith("https:") });
+      return installJson({ installUrl: `itms-services://?action=download-manifest&url=${encodeURIComponent(manifest)}`, expiresAt: result.expiresAt, expiresIn: result.expiresIn, https: manifest.startsWith("https:") });
     }
     return installJson({ error: "Không tìm thấy." }, 404);
   } catch (e) { return installFailure(e); }

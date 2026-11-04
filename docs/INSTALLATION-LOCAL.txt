@@ -83,9 +83,14 @@ BẢO VỆ VÀ GIỚI HẠN
 - Không ghi mật khẩu/.p12/hai ID vào log. apple-chain.pem chỉ có CA công khai
   của Apple, SHA-256 a2ec0ec0a1db254ff0a74643e4d1975339c7b3ebb692b2e17ce871f6a65d4c3d.
   Kiểm tra chữ ký/chuỗi offline không thay thế kiểm tra thu hồi chứng chỉ online.
-- Session khách HttpOnly, SameSite=Strict, 6 giờ; Secure khi APP_URL là HTTPS.
-- Link manifest/IPA có token ngẫu nhiên 256 bit, lưu hash, hạn tối đa 30 phút
-  và không quá hạn key. Installer iOS không cần cookie trình duyệt để tải.
+- Mã cài hết hạn sau 15 phút kể từ lúc tạo hoặc Cấp mã mới. Đăng nhập, tải
+  lại trang hoặc hoàn tất ký không gia hạn thời điểm này. IPA đã ký được giữ
+  để tái dùng khi quản trị cấp mã mới, không phải ký lại chỉ vì mã hết hạn.
+- Session khách HttpOnly, SameSite=Strict; Secure khi APP_URL là HTTPS.
+  Session và link tải không vượt quá hạn mã cài hoặc hạn key. Link manifest/IPA
+  có token ngẫu nhiên 256 bit, lưu hash; installer iOS không cần cookie.
+  Mỗi request status/prepare/link/manifest/IPA (kể cả HEAD/Range) đều kiểm tra
+  hạn trên server. Một response IPA đã bắt đầu trước hạn có thể tải xong.
 - Tải hỗ trợ GET/HEAD/Range; no-store, no-referrer. Token tải là bearer secret:
   cần tắt/che access log chứa /api/install/download/ ở reverse proxy và máy web.
 - Cấp lại mã cài hủy mã cũ, session và link cũ. Thu hồi bản cài chặn tải nhưng

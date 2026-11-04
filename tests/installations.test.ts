@@ -51,6 +51,8 @@ test("customer installation, actual macOS signing, private OTA delivery and revo
     await t.test("admin upload validates Apple-signed profile and issues only an independent install code", async () => {
       const r = await upload(); assert.equal(r.status, 201, await r.clone().text());
       const result = await r.json(); installId = result.id; installCode = result.code;
+      assert.ok(Date.parse(result.expiresAt) - Date.now() > 895000);
+      assert.ok(Date.parse(result.expiresAt) - Date.now() <= 900000);
       assert.match(installCode, /^[a-f0-9-]{36}$/); assert.notEqual(installCode, nemoIds.device_id.toLowerCase());
       assert.equal(result.metadata.name, "Nemo"); assert.equal(result.metadata.blankIdentity, true);
       const [rows] = await db.execute<RowDataPacket[]>(`SELECT * FROM ios_installations WHERE id = ?`, [installId]);

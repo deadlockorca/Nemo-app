@@ -8,10 +8,12 @@ export type InstallationItem = {
   id: string; license_id: string; label: string; apple_udid: string; state: string;
   customer_name: string; key_hint: string; metadata: PackageMetadata;
   job_status: string | null; error_code: string | null; created_at: string;
+  code_expires_at: string | null; code_expired: number;
 };
 export type CustomerInstall = {
   label: string; deviceSuffix: string; version: string; status: string;
   error: string | null; development: boolean;
+  expiresAt: string; expiresIn: number;
 };
 export const signingErrors: Record<string, string> = {
   wrong_p12_password: "Mật khẩu .p12 không đúng hoặc tệp chứng chỉ không hợp lệ.",

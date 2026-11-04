@@ -10,13 +10,13 @@ import { attachVerifiedInstallation } from "./device-profiles";
 
 type InstallRow = RowDataPacket & {
   id: string; license_id: string; label: string; apple_udid: string; source_key: string;
-  secrets_key: string; metadata: PackageMetadata; state: string;
+  secrets_key: string; metadata: PackageMetadata; state: string; code_expires_at: Date;
 };
 type JobRow = RowDataPacket & { id: string; installation_id: string; status: string; attempt: number; error_code: string | null; output_key: string | null };
 const randomId = () => randomBytes(16).toString("hex");
 const eligible = `l.status <> 'revoked' AND (l.expires_at IS NULL OR l.expires_at > UTC_TIMESTAMP(3))`;
 export const INSTALL_COOKIE = "nemo_install_session";
-export const INSTALL_SESSION_SECONDS = 6 * 60 * 60;
+export const INSTALL_CODE_SECONDS = 15 * 60;
 
 async function transaction<T>(fn: (db: PoolConnection) => Promise<T>) {
   const db = await getDb().getConnection();
@@ -26,13 +26,14 @@ async function transaction<T>(fn: (db: PoolConnection) => Promise<T>) {
 }
 export async function adminInstallations() {
   const [items] = await getDb().execute<RowDataPacket[]>(`SELECT i.id, i.license_id, i.label, i.apple_udid, i.metadata, i.state, i.created_at,
+    i.code_expires_at, (i.code_expires_at IS NULL OR i.code_expires_at <= UTC_TIMESTAMP(3)) AS code_expired,
     c.name AS customer_name, l.key_hint, j.status AS job_status, j.error_code FROM ios_installations i
     JOIN licenses l ON l.id = i.license_id JOIN customers c ON c.id = l.customer_id
     LEFT JOIN ios_signing_jobs j ON j.installation_id = i.id ORDER BY i.created_at DESC, i.id DESC LIMIT 100`);
   const [licenses] = await getDb().execute<RowDataPacket[]>(`SELECT l.id, l.key_hint, c.name AS customer_name FROM licenses l
     JOIN customers c ON c.id = l.customer_id JOIN license_identities li ON li.license_id = l.id
     WHERE ${eligible} ORDER BY l.id DESC LIMIT 200`);
-  return { items, licenses };
+  return { items: items.map(item => ({ ...item, code_expired: Number(item.code_expired) })), licenses };
 }
 export async function createInstallation(admin: Admin, form: FormData) {
   const licenseId = id(form.get("licenseId"));
@@ -55,18 +56,20 @@ export async function createInstallation(admin: Admin, form: FormData) {
     const metadata = await runPackager({ ...secrets, mode: "inspect", source: objectPath(source, "ipa"), udid: udid.toUpperCase() });
     encrypted = await storeObject(Buffer.from(JSON.stringify(secrets)), "secret");
     const installId = randomId(), code = randomUUID();
-    await transaction(async (db) => {
+    const expiresAt = await transaction(async (db) => {
       const [current] = await db.execute<RowDataPacket[]>(`SELECT l.id, l.customer_id FROM licenses l JOIN license_identities li ON li.license_id = l.id WHERE l.id = ? AND ${eligible} FOR UPDATE`, [licenseId]);
       if (!current.length) throw new InputError("Key đã thay đổi. Hãy kiểm tra lại.", 409);
-      await db.execute(`INSERT INTO ios_installations (id, license_id, label, apple_udid, code_hash, source_key, secrets_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [installId, licenseId, label.trim(), udid.toUpperCase(), tokenHash(code), source, encrypted!, JSON.stringify(metadata)]);
+      await db.execute(`INSERT INTO ios_installations (id, license_id, label, apple_udid, code_hash, source_key, secrets_key, metadata, code_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TIMESTAMPADD(SECOND, ?, UTC_TIMESTAMP(3)))`,
+        [installId, licenseId, label.trim(), udid.toUpperCase(), tokenHash(code), source, encrypted!, JSON.stringify(metadata), INSTALL_CODE_SECONDS]);
       await attachVerifiedInstallation(db, admin, { customerId: String(current[0].customer_id), licenseId,
         udid: udid.toUpperCase(), label: label.trim(), signingLabel: typeof signingLabel === "string" ? signingLabel.trim() : "",
         installationId: installId, metadata });
       await db.execute(`INSERT INTO audit_events (admin_id, action, target_id, details) VALUES (?, 'installation.created', ?, ?)`,
         [admin.id, installId, JSON.stringify({ licenseId, sourceSha256: metadata.sourceSha256, team: metadata.team })]);
+      const [expiry] = await db.execute<RowDataPacket[]>(`SELECT code_expires_at FROM ios_installations WHERE id = ?`, [installId]);
+      return expiry[0].code_expires_at as Date;
     });
-    return { id: installId, code, metadata };
+    return { id: installId, code, metadata, expiresAt };
   } catch (e) {
     await removeObject(source, "ipa");
     if (encrypted) await removeObject(encrypted, "secret");
@@ -78,17 +81,19 @@ function installId(value: string) { if (!/^[a-f0-9]{32}$/.test(value)) throw new
 export async function updateInstallation(admin: Admin, value: string, action: string) {
   const target = installId(value), code = randomUUID();
   if (action !== "revoke" && action !== "rotate") throw new InputError("Không tìm thấy thao tác.", 404);
-  await transaction(async (db) => {
+  const expiresAt = await transaction(async (db) => {
     const [rows] = await db.execute<InstallRow[]>(`SELECT * FROM ios_installations WHERE id = ? FOR UPDATE`, [target]);
     if (!rows.length) throw new InputError("Không tìm thấy bản cài.", 404);
     if (action === "rotate" && rows[0].state !== "active") throw new InputError("Bản cài đã thu hồi. Hãy tạo bản cài mới.", 409);
-    if (action === "rotate") await db.execute(`UPDATE ios_installations SET code_hash = ? WHERE id = ?`, [tokenHash(code), target]);
+    if (action === "rotate") await db.execute(`UPDATE ios_installations SET code_hash = ?, code_expires_at = TIMESTAMPADD(SECOND, ?, UTC_TIMESTAMP(3)) WHERE id = ?`, [tokenHash(code), INSTALL_CODE_SECONDS, target]);
     else await db.execute(`UPDATE ios_installations SET state = 'revoked' WHERE id = ?`, [target]);
     await db.execute(`DELETE FROM ios_install_sessions WHERE installation_id = ?`, [target]);
     await db.execute(`DELETE d FROM ios_downloads d JOIN ios_signing_jobs j ON j.id = d.job_id WHERE j.installation_id = ?`, [target]);
     await db.execute(`INSERT INTO audit_events (admin_id, action, target_id) VALUES (?, ?, ?)`, [admin.id, `installation.${action === "rotate" ? "code_rotated" : "revoked"}`, target]);
+    const [expiry] = await db.execute<RowDataPacket[]>(`SELECT code_expires_at FROM ios_installations WHERE id = ?`, [target]);
+    return expiry[0].code_expires_at as Date;
   });
-  return action === "rotate" ? { code } : { ok: true };
+  return action === "rotate" ? { code, expiresAt } : { ok: true };
 }
 async function consumeLoginLimit(code: string) {
   // A code has 122 random bits. The database limit also bounds online attempts
@@ -113,22 +118,30 @@ export async function loginInstallation(value: unknown) {
   await consumeLoginLimit(code);
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(code)) throw new InputError("Mã cài không hợp lệ hoặc đã hết hiệu lực.", 401);
   return transaction(async (db) => {
-    const [rows] = await db.execute<InstallRow[]>(`SELECT i.* FROM ios_installations i JOIN licenses l ON l.id = i.license_id
-      WHERE i.code_hash = ? AND i.state = 'active' AND ${eligible} FOR SHARE`, [tokenHash(code)]);
+    const [rows] = await db.execute<InstallRow[]>(`SELECT i.*,
+      LEAST(i.code_expires_at, COALESCE(l.expires_at, i.code_expires_at)) AS access_expires_at,
+      TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(3), LEAST(i.code_expires_at, COALESCE(l.expires_at, i.code_expires_at))) AS remaining_seconds
+      FROM ios_installations i JOIN licenses l ON l.id = i.license_id
+      WHERE i.code_hash = ? AND i.state = 'active' AND i.code_expires_at > UTC_TIMESTAMP(3) AND ${eligible} FOR SHARE`, [tokenHash(code)]);
     if (!rows.length) throw new InputError("Mã cài không hợp lệ hoặc đã hết hiệu lực.", 401);
     // Bound session count per code without invalidating active download tokens.
     await db.execute(`DELETE FROM ios_install_sessions WHERE installation_id = ? AND expires_at <= UTC_TIMESTAMP(3)`, [rows[0].id]);
     const [count] = await db.execute<RowDataPacket[]>(`SELECT COUNT(*) AS n FROM ios_install_sessions WHERE installation_id = ?`, [rows[0].id]);
     if (Number(count[0].n) >= 30) throw new InputError("Mã cài đang có nhiều phiên. Hãy liên hệ người cấp mã.", 429);
     const token = randomBytes(32).toString("hex");
-    await db.execute(`INSERT INTO ios_install_sessions (token_hash, installation_id, expires_at) VALUES (?, ?, TIMESTAMPADD(SECOND, ?, UTC_TIMESTAMP(3)))`, [tokenHash(token), rows[0].id, INSTALL_SESSION_SECONDS]);
-    return { token };
+    const expiresIn = Math.min(INSTALL_CODE_SECONDS, Number(rows[0].remaining_seconds));
+    if (expiresIn <= 0) throw new InputError("Mã cài đã hết hạn. Hãy liên hệ người cấp mã để nhận mã mới.", 401);
+    await db.execute(`INSERT INTO ios_install_sessions (token_hash, installation_id, expires_at) VALUES (?, ?, ?)`, [tokenHash(token), rows[0].id, rows[0].access_expires_at]);
+    return { token, expiresIn };
   });
 }
 export async function installationForSession(token: string | undefined) {
   if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new InputError("Hãy nhập lại mã cài.", 401);
-  const [rows] = await getDb().execute<InstallRow[]>(`SELECT i.* FROM ios_installations i JOIN ios_install_sessions s ON s.installation_id = i.id
-    JOIN licenses l ON l.id = i.license_id WHERE s.token_hash = ? AND s.expires_at > UTC_TIMESTAMP(3) AND i.state = 'active' AND ${eligible}`, [tokenHash(token)]);
+  const [rows] = await getDb().execute<InstallRow[]>(`SELECT i.*,
+    LEAST(i.code_expires_at, s.expires_at, COALESCE(l.expires_at, i.code_expires_at)) AS access_expires_at,
+    TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(3), LEAST(i.code_expires_at, s.expires_at, COALESCE(l.expires_at, i.code_expires_at))) AS remaining_seconds
+    FROM ios_installations i JOIN ios_install_sessions s ON s.installation_id = i.id
+    JOIN licenses l ON l.id = i.license_id WHERE s.token_hash = ? AND s.expires_at > UTC_TIMESTAMP(3) AND i.state = 'active' AND i.code_expires_at > UTC_TIMESTAMP(3) AND ${eligible}`, [tokenHash(token)]);
   if (!rows.length) throw new InputError("Mã cài đã hết hiệu lực. Hãy nhập lại mã hoặc liên hệ người cấp mã.", 401);
   const row = rows[0];
   const expiry = Math.min(Date.parse(row.metadata.profileExpiresAt), Date.parse(row.metadata.certificateExpiresAt));
@@ -140,13 +153,15 @@ export async function installationStatus(token: string | undefined): Promise<Cus
   const [jobs] = await getDb().execute<JobRow[]>(`SELECT * FROM ios_signing_jobs WHERE installation_id = ?`, [i.id]);
   const job = jobs[0];
   return { label: i.label, deviceSuffix: i.apple_udid.slice(-8), version: i.metadata.version, status: job?.status || "new",
+    expiresAt: (i.access_expires_at as Date).toISOString(), expiresIn: Math.max(0, Number(i.remaining_seconds)),
     error: job?.status === "failed" ? signingError(job.error_code) : null, development: i.metadata.signingMode === "development" };
 }
 export async function queueInstallation(token: string | undefined) {
   const i = await installationForSession(token);
   await transaction(async (db) => {
-    const [active] = await db.execute<RowDataPacket[]>(`SELECT state FROM ios_installations WHERE id = ? FOR UPDATE`, [i.id]);
-    if (active[0]?.state !== "active") throw new InputError("Bản cài đã thu hồi.", 409);
+    const [active] = await db.execute<RowDataPacket[]>(`SELECT i.id FROM ios_installations i JOIN ios_install_sessions s ON s.installation_id = i.id JOIN licenses l ON l.id = i.license_id
+      WHERE i.id = ? AND s.token_hash = ? AND s.expires_at > UTC_TIMESTAMP(3) AND i.code_expires_at > UTC_TIMESTAMP(3) AND i.state = 'active' AND ${eligible} FOR UPDATE`, [i.id, tokenHash(token!)]);
+    if (!active.length) throw new InputError("Mã cài đã hết hiệu lực. Hãy liên hệ người cấp mã.", 401);
     const [jobs] = await db.execute<JobRow[]>(`SELECT *, finished_at < UTC_TIMESTAMP(3) - INTERVAL 30 SECOND AS retry_allowed FROM ios_signing_jobs WHERE installation_id = ? FOR UPDATE`, [i.id]);
     const current = jobs[0];
     if (current && current.status !== "failed") return;
@@ -163,18 +178,21 @@ export async function issueDownload(token: string | undefined) {
   const raw = randomBytes(32).toString("hex");
   // INSERT...SELECT rechecks revocation and expiry at the point of issuing.
   const [result] = await getDb().execute<ResultSetHeader>(`INSERT INTO ios_downloads (token_hash, job_id, expires_at)
-    SELECT ?, j.id, LEAST(TIMESTAMPADD(MINUTE, 30, UTC_TIMESTAMP(3)), COALESCE(l.expires_at, TIMESTAMPADD(MINUTE, 30, UTC_TIMESTAMP(3))))
+    SELECT ?, j.id, LEAST(i.code_expires_at, s.expires_at, COALESCE(l.expires_at, i.code_expires_at))
     FROM ios_signing_jobs j JOIN ios_installations i ON i.id = j.installation_id JOIN licenses l ON l.id = i.license_id
-    WHERE i.id = ? AND i.state = 'active' AND j.status = 'ready' AND ${eligible}
-    AND (SELECT COUNT(*) FROM ios_downloads d WHERE d.job_id = j.id AND d.expires_at > UTC_TIMESTAMP(3)) < 20`, [tokenHash(raw), i.id]);
+    JOIN ios_install_sessions s ON s.installation_id = i.id
+    WHERE i.id = ? AND s.token_hash = ? AND s.expires_at > UTC_TIMESTAMP(3) AND i.code_expires_at > UTC_TIMESTAMP(3) AND i.state = 'active' AND j.status = 'ready' AND ${eligible}
+    AND (SELECT COUNT(*) FROM ios_downloads d WHERE d.job_id = j.id AND d.expires_at > UTC_TIMESTAMP(3)) < 20`, [tokenHash(raw), i.id, tokenHash(token!)]);
   if (!result.affectedRows) throw new InputError("Bản cài chưa sẵn sàng hoặc đã có nhiều lượt tải. Hãy thử lại sau.", 409);
-  return { token: raw, expiresIn: 1800 };
+  const [expiry] = await getDb().execute<RowDataPacket[]>(`SELECT expires_at, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(3), expires_at) AS remaining_seconds FROM ios_downloads WHERE token_hash = ?`, [tokenHash(raw)]);
+  if (!expiry.length) throw new InputError("Liên kết cài đã hết hiệu lực. Hãy liên hệ người cấp mã.", 401);
+  return { token: raw, expiresAt: expiry[0].expires_at as Date, expiresIn: Math.max(0, Number(expiry[0].remaining_seconds)) };
 }
 export async function authorizedDownload(raw: string) {
   if (!/^[a-f0-9]{64}$/.test(raw)) throw new InputError("Liên kết cài đã hết hiệu lực.", 404);
   const [rows] = await getDb().execute<(InstallRow & { output_key: string; output_sha256: string })[]>(`SELECT i.*, j.output_key, j.output_sha256
     FROM ios_downloads d JOIN ios_signing_jobs j ON j.id = d.job_id JOIN ios_installations i ON i.id = j.installation_id JOIN licenses l ON l.id = i.license_id
-    WHERE d.token_hash = ? AND d.expires_at > UTC_TIMESTAMP(3) AND j.status = 'ready' AND i.state = 'active' AND ${eligible}`, [tokenHash(raw)]);
+    WHERE d.token_hash = ? AND d.expires_at > UTC_TIMESTAMP(3) AND i.code_expires_at > UTC_TIMESTAMP(3) AND j.status = 'ready' AND i.state = 'active' AND ${eligible}`, [tokenHash(raw)]);
   if (!rows.length) throw new InputError("Liên kết cài đã hết hiệu lực.", 404);
   const row = rows[0];
   if (Math.min(Date.parse(row.metadata.profileExpiresAt), Date.parse(row.metadata.certificateExpiresAt)) <= Date.now()) throw new InputError("Chứng chỉ đã hết hạn.", 404);
