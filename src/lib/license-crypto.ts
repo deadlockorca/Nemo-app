@@ -1,12 +1,13 @@
 import { createPrivateKey, createPublicKey, createHash, sign, verify, type KeyObject } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { parseIdentityConfig, type IdentityConfig } from "./identity-config";
 
 export const LEASE_SECONDS = 24 * 60 * 60;
 export const LICENSE_ISSUER = "nemo-license";
 export const LICENSE_AUDIENCE = "nemo-app";
 export type LeaseClaims = {
   v: 1; iss: string; aud: string; sub: string; device: string; version: number;
-  iat: number; exp: number; licenseExpiresAt: number; nonce?: string;
+  iat: number; exp: number; licenseExpiresAt: number; nonce?: string; identity?: IdentityConfig;
 };
 function hash(value: Buffer) { return createHash("sha256").update(value).digest("hex"); }
 export function publicIdentity(base64: string) {
@@ -54,5 +55,6 @@ export function verifyLease(token: string, trustedPublicKey: KeyObject, expected
     || !Number.isSafeInteger(c.version) || c.version < 1
     || ![c.iat, c.exp, c.licenseExpiresAt].every(Number.isSafeInteger)
     || c.iat > now + 120 || c.exp <= now || c.exp <= c.iat || c.exp - c.iat > LEASE_SECONDS || c.exp > c.licenseExpiresAt) throw new Error("Invalid or expired lease claims");
+  if (c.identity !== undefined) parseIdentityConfig(c.identity);
   return c;
 }

@@ -166,3 +166,10 @@ Giữ nguyên mọi thời hạn và thiết bị hiện có; tăng version, ghi
 Key pending cũ về pending; key đã bắt đầu tính hạn về active nhưng vẫn bị từ chối
 license_expired nếu hạn cũ đã qua. Khôi phục không gia hạn hoặc tự gắn thiết bị
 đã gỡ. Thiết bị còn liên kết có thể /verify lại bằng licenseId đã lưu.
+
+BỔ SUNG 2026-10-25/26 — IPA TRẮNG (LOCAL)
+Đã có bảng license_identities và giao diện Cấu hình app trên trang key. Key có
+assignment hợp lệ nhận claim tùy chọn identity:{v:1,device_id,uuid} trong JWT đã
+ký; /activate và /verify không nhận cấu hình từ app. Key cũ không gán cấu hình
+vẫn nhận contract cũ. Trang cài khách/tự ký và giới hạn kiểm thử được mô tả tại
+docs/INSTALLATION-LOCAL.txt. Chưa deploy VPS trong đợt bổ sung này.
