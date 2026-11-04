@@ -92,6 +92,26 @@ export async function saveDeviceProfile(admin: Admin, data: Record<string, unkno
   } finally { db.release(); }
 }
 
+export async function deleteDeviceProfile(admin: Admin, profileId: string, data: Record<string, unknown>) {
+  id(profileId);
+  if (typeof data.version !== "number" || !Number.isInteger(data.version) || data.version < 1) throw new InputError("Thiếu phiên bản hồ sơ. Hãy tải lại danh sách.");
+  const db = await getDb().getConnection();
+  try {
+    await db.beginTransaction();
+    const [rows] = await db.execute<RowDataPacket[]>(`SELECT * FROM customer_device_profiles WHERE id = ? FOR UPDATE`, [profileId]);
+    const row = rows[0];
+    if (!row) throw new InputError("Không tìm thấy hồ sơ thiết bị.", 404);
+    if (row.version !== data.version) throw new InputError("Hồ sơ đã thay đổi. Hãy tải lại trước khi xóa.", 409);
+    if (row.installation_id || row.license_id) throw new InputError("Hồ sơ còn gắn key hoặc bản cài. Hãy xóa key liên quan trước; nếu chưa có bản cài, có thể bỏ gắn key trong Chỉnh sửa.", 409);
+    await db.execute(`DELETE FROM customer_device_profiles WHERE id = ?`, [profileId]);
+    await db.execute(`INSERT INTO audit_events (admin_id, action, target_id, details) VALUES (?, 'device_profile.deleted', ?, ?)`,
+      [admin.id, profileId, JSON.stringify({ customerId: String(row.customer_id), label: row.label })]);
+    await db.commit();
+    return { id: profileId };
+  } catch (e) { await db.rollback(); throw e; }
+  finally { db.release(); }
+}
+
 // Called inside the installation transaction, after the license has been locked
 // and both the Apple profile and P12 have been verified. Never updates licenses
 // or activation fingerprints. User-entered labels/model/notes are retained.

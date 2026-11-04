@@ -14,10 +14,10 @@ export const sectionTitles: Record<ManagementSection, string> = {
   customers: "Khách hàng", licenses: "Quản lý key", devices: "Thiết bị", activity: "Lịch sử hoạt động",
 };
 export const actionTitles: Record<string, string> = {
-  "device_profile.created": "Thêm hồ sơ thiết bị", "device_profile.updated": "Sửa hồ sơ thiết bị", "device_profile.installation_linked": "Gắn bộ ký với thiết bị",
+  "device_profile.created": "Thêm hồ sơ thiết bị", "device_profile.updated": "Sửa hồ sơ thiết bị", "device_profile.deleted": "Xóa hồ sơ thiết bị", "device_profile.installation_linked": "Gắn bộ ký với thiết bị",
   "installation.created": "Tạo bản cài", "installation.revoked": "Thu hồi bản cài", "installation.code_rotated": "Cấp lại mã cài",
   "admin.login": "Đăng nhập quản trị", "admin.password_changed": "Đổi mật khẩu quản trị",
-  "customer.created": "Thêm khách hàng", "customer.updated": "Sửa khách hàng",
+  "customer.created": "Thêm khách hàng", "customer.updated": "Sửa khách hàng", "customer.deleted": "Xóa khách hàng",
   "license.created": "Cấp key", "license.extended": "Gia hạn key", "license.revoked": "Thu hồi key", "license.restored": "Khôi phục key", "license.deleted": "Xóa key",
   "license.test_expired": "Kiểm thử hết hạn key", "license.test_restored": "Khôi phục key sau kiểm thử",
   "device.released": "Gỡ liên kết thiết bị", "device.activated": "Kích hoạt thiết bị",

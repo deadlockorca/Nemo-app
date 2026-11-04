@@ -23,8 +23,9 @@ export function DeviceProfiles({ initial, bindings, initialQuery = "" }: { initi
   const [detail, setDetail] = useState<DeviceProfile | null>(null), [draft, setDraft] = useState<Draft>(draftOf());
   const [customers, setCustomers] = useState<ManagementRow[]>([]), [licenses, setLicenses] = useState<ManagementRow[]>([]);
   const [customerSearch, setCustomerSearch] = useState(""), [inspection, setInspection] = useState<ProfileInspection | null>(null);
+  const [deleting, setDeleting] = useState<DeviceProfile | null>(null);
   const dialog = useRef<HTMLDialogElement>(null), requestId = useRef(0);
-  const activeDialog = !!editor || !!detail;
+  const activeDialog = !!editor || !!detail || !!deleting;
   useEffect(() => { const d = dialog.current; if (activeDialog) d?.showModal(); return () => d?.close(); }, [activeDialog]);
   useEffect(() => {
     if (!editor) return;
@@ -38,7 +39,6 @@ export function DeviceProfiles({ initial, bindings, initialQuery = "" }: { initi
     return () => { clearTimeout(timer); controller.abort(); };
   }, [editor, customerSearch]);
   useEffect(() => {
-    setLicenses([]);
     if (!editor || !draft.customerId) return;
     const controller = new AbortController();
     void (async () => {
@@ -50,7 +50,7 @@ export function DeviceProfiles({ initial, bindings, initialQuery = "" }: { initi
     return () => controller.abort();
   }, [editor, draft.customerId]);
   function edit(row: DeviceProfile | null) {
-    setDetail(null); setDraft(draftOf(row)); setInspection(null); setCustomerSearch(""); setError(""); setEditor({ row });
+    setLicenses([]); setDeleting(null); setDetail(null); setDraft(draftOf(row)); setInspection(null); setCustomerSearch(""); setError(""); setEditor({ row });
   }
   async function load(page = 1, query = appliedQuery) {
     const current = ++requestId.current; setLoading(true); setError("");
@@ -78,8 +78,21 @@ export function DeviceProfiles({ initial, bindings, initialQuery = "" }: { initi
     } catch (e) { setError(e instanceof Error ? e.message : "Chưa lưu được hồ sơ."); }
     finally { setBusy(false); }
   }
+  function confirmDelete(row: DeviceProfile) {
+    setEditor(null); setDetail(null); setError(""); setDeleting(row);
+  }
+  async function remove(event: FormEvent) {
+    event.preventDefault(); if (!deleting || busy) return;
+    setBusy(true); setError("");
+    try {
+      const r = await fetch(`/api/admin/device-profiles/${deleting.id}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: deleting.version }) });
+      const result = await r.json(); if (!r.ok) throw new Error(result.error);
+      setDeleting(null); setNotice("Đã xóa hồ sơ thiết bị."); await load(data.page); router.refresh();
+    } catch (e) { setError(e instanceof Error ? e.message : "Chưa xóa được hồ sơ."); }
+    finally { setBusy(false); }
+  }
   const set = (key: keyof Draft, value: string) => setDraft(d => ({ ...d, [key]: value }));
-  const close = () => { if (!busy && !inspecting) { setEditor(null); setDetail(null); setError(""); } };
+  const close = () => { if (!busy && !inspecting) { setEditor(null); setDetail(null); setDeleting(null); setError(""); } };
   const customerOptions = editor?.row && !customers.some(c => c.id === editor.row!.customer_id)
     ? [{ id: editor.row.customer_id, name: editor.row.customer_name }, ...customers] : customers;
   return <>
@@ -95,20 +108,21 @@ export function DeviceProfiles({ initial, bindings, initialQuery = "" }: { initi
           <td><strong>{row.signing_label || "Chưa đặt tên bộ ký"}</strong><small>Chứng chỉ: {row.certificate_expires_at ? formatDate(row.certificate_expires_at) : "Chưa có hạn"}</small><small>Profile: {row.profile_expires_at ? formatDate(row.profile_expires_at) : "Chưa có hạn"}</small></td>
           <td>{row.key_expires_at ? formatDate(row.key_expires_at) : "—"}<small>{row.key_status ? keyStatuses[row.key_status] : "Chưa gắn key"}</small></td>
           <td><span className={`status-pill ${row.fingerprint ? "active" : "pending"}`}>{row.fingerprint ? "Đã kích hoạt" : "Chưa kích hoạt"}</span><small>{row.last_seen_at ? `Kết nối: ${formatDate(row.last_seen_at)}` : ""}</small></td>
-          <td><button className="text-button" onClick={() => { setError(""); setDetail(row); }}>Chi tiết</button></td>
+          <td><div className="row-actions"><button className="text-button" onClick={() => { setError(""); setDetail(row); }}>Chi tiết</button><button className="text-button danger-text" onClick={() => confirmDelete(row)}>Xóa</button></div></td>
         </tr>)}</tbody></table></div>
         {!data.items.length && <div className="table-empty"><h2>{appliedQuery ? "Không tìm thấy thiết bị" : "Chưa có hồ sơ thiết bị"}</h2><p>Thêm tên máy và UDID, hoặc tạo bản cài để tự ghi nhận bộ chứng chỉ.</p></div>}
         <footer className="table-pagination"><span>{data.total} hồ sơ · Trang {data.page}/{data.pages}</span><div><button className="secondary-button" disabled={loading || data.page <= 1} onClick={() => void load(data.page - 1)}>← Trước</button><button className="secondary-button" disabled={loading || data.page >= data.pages} onClick={() => void load(data.page + 1)}>Sau →</button></div></footer>
       </section>
     </>}
     {activeDialog && <dialog ref={dialog} className="management-dialog device-dialog" aria-labelledby="device-dialog-title" onCancel={e => { e.preventDefault(); close(); }}>
-      <div className="dialog-heading"><h2 id="device-dialog-title">{editor ? editor.row ? "Sửa hồ sơ thiết bị" : "Thêm hồ sơ thiết bị" : detail!.label}</h2><button className="icon-button" aria-label="Đóng" disabled={busy || inspecting} onClick={close}>×</button></div>
+      <div className="dialog-heading"><h2 id="device-dialog-title">{deleting ? "Xóa hồ sơ thiết bị" : editor ? editor.row ? "Sửa hồ sơ thiết bị" : "Thêm hồ sơ thiết bị" : detail!.label}</h2><button className="icon-button" aria-label="Đóng" disabled={busy || inspecting} onClick={close}>×</button></div>
       {error && <p className="error-box" role="alert">{error}</p>}
+      {deleting && <form className="management-form" onSubmit={remove}><p className="confirmation-copy">Xóa vĩnh viễn hồ sơ <strong>{deleting.label}</strong> của <strong>{deleting.customer_name}</strong>?</p><p className="field-help">UDID Apple: <code>{deleting.apple_udid}</code>. Xóa hồ sơ không gỡ app hoặc xóa dữ liệu Keychain trên iPad. Lịch sử thao tác vẫn được giữ lại.</p>{(deleting.license_id || deleting.installation_id) && <p className="error-box" role="alert">Hồ sơ còn gắn key {deleting.license_id ? `#${deleting.license_id}` : ""} hoặc bản cài. <Link href="/admin/licenses">Xóa key liên quan</Link> trước; nếu chưa có bản cài, có thể bỏ gắn key trong Chỉnh sửa. Sau đó tải lại danh sách thiết bị.</p>}<div className="dialog-actions"><button type="button" className="secondary-button" disabled={busy} onClick={close}>Hủy</button><button className="primary-button danger-button" disabled={busy || !!deleting.license_id || !!deleting.installation_id}>{busy ? "Đang xóa…" : "Xóa vĩnh viễn"}</button></div></form>}
       {detail && <><dl className="device-details"><dt>Khách hàng</dt><dd>{detail.customer_name} · #{detail.customer_id}</dd><dt>Model</dt><dd>{detail.model || "Chưa ghi"}</dd><dt>UDID Apple</dt><dd><code>{detail.apple_udid}</code></dd><dt>Bộ chứng chỉ</dt><dd>{detail.signing_label || "Chưa ghi"}</dd><dt>Hết hạn chứng chỉ</dt><dd>{formatDate(detail.certificate_expires_at)}</dd><dt>Hết hạn profile</dt><dd>{formatDate(detail.profile_expires_at)}</dd><dt>Key</dt><dd>{detail.license_id ? `#${detail.license_id} · …${detail.key_hint}` : "Chưa gắn"}</dd><dt>Hết hạn key</dt><dd>{formatDate(detail.key_expires_at)}</dd><dt>Fingerprint app</dt><dd><code>{detail.fingerprint || "Chưa kích hoạt key"}</code></dd><dt>Ghi chú</dt><dd>{detail.notes || "—"}</dd></dl>
         <div className="dialog-actions"><button className="secondary-button" onClick={async () => { try { await navigator.clipboard.writeText(detail.apple_udid); setNotice("Đã sao chép UDID Apple."); } catch { setError("Chọn UDID ở trên để sao chép bằng tay."); } }}>Sao chép UDID</button><button className="primary-button" onClick={() => edit(detail)}>Chỉnh sửa</button></div></>}
       {editor && <form className="management-form" onSubmit={save}><fieldset disabled={busy || inspecting} className="device-fieldset">
         {!editor.row && <label>Tìm khách hàng<input value={customerSearch} onChange={e => setCustomerSearch(e.target.value)} placeholder="Tên hoặc thông tin liên hệ" maxLength={120} /></label>}
-        <label>Khách hàng<select value={draft.customerId} required disabled={!!editor.row} onChange={e => setDraft(d => ({ ...d, customerId: e.target.value, licenseId: "" }))}><option value="">Chọn khách hàng</option>{customerOptions.map(c => <option key={c.id} value={c.id}>{c.name} · #{c.id}</option>)}</select></label>
+        <label>Khách hàng<select value={draft.customerId} required disabled={!!editor.row} onChange={e => { setLicenses([]); setDraft(d => ({ ...d, customerId: e.target.value, licenseId: "" })); }}><option value="">Chọn khách hàng</option>{customerOptions.map(c => <option key={c.id} value={c.id}>{c.name} · #{c.id}</option>)}</select></label>
         <label>Tên dễ nhớ<input value={draft.label} onChange={e => set("label", e.target.value)} maxLength={120} required placeholder="Ví dụ: iPad Hải" /></label>
         <label>Model<input value={draft.model} onChange={e => set("model", e.target.value)} maxLength={80} placeholder="Ví dụ: iPad15,8" /></label>
         <ProfileUpload disabled={busy} onBusy={setInspecting} onRead={info => {

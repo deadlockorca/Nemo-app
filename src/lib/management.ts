@@ -56,6 +56,22 @@ export async function saveCustomer(admin: Admin, data: Record<string, unknown>, 
   });
 }
 
+export async function deleteCustomer(admin: Admin, customerId: string, data: Record<string, unknown>) {
+  id(customerId);
+  return transaction(async (db) => {
+    const [rows] = await db.execute<RowDataPacket[]>(`SELECT name, version FROM customers WHERE id = ? FOR UPDATE`, [customerId]);
+    if (!rows[0]) throw new InputError("Không tìm thấy khách hàng.", 404);
+    expectVersion(data.version, rows[0].version);
+    const [licenses] = await db.execute<RowDataPacket[]>(`SELECT id FROM licenses WHERE customer_id = ? LIMIT 1 FOR UPDATE`, [customerId]);
+    if (licenses.length) throw new InputError("Khách hàng còn key. Hãy xóa các key của khách trước khi xóa khách hàng.", 409);
+    const [profiles] = await db.execute<RowDataPacket[]>(`SELECT id FROM customer_device_profiles WHERE customer_id = ? LIMIT 1 FOR UPDATE`, [customerId]);
+    if (profiles.length) throw new InputError("Khách hàng còn hồ sơ thiết bị. Hãy xóa các hồ sơ đó trước khi xóa khách hàng.", 409);
+    await db.execute(`DELETE FROM customers WHERE id = ?`, [customerId]);
+    await audit(db, admin, "customer.deleted", customerId, { name: rows[0].name });
+    return { id: customerId };
+  });
+}
+
 export async function createLicense(admin: Admin, data: Record<string, unknown>) {
   const customerId = id(data.customerId);
   const duration = days(data.durationDays ?? 30);

@@ -30,6 +30,23 @@ biểu mẫu sửa để tránh làm lệch bộ ký; khi đổi máy cần hồ
 Chứng chỉ/P12 và mật khẩu vẫn ở kho mã hóa của luồng cài đặt hiện có.
 Bảng hồ sơ chỉ chứa thông tin quản lý, không chứa private key hoặc P12.
 
+XÓA KHÁCH HÀNG VÀ HỒ SƠ THIẾT BỊ — BỔ SUNG LOCAL
+Danh sách Khách hàng và Hồ sơ thiết bị có nút Xóa và hộp thoại xác nhận.
+Khách hàng chỉ xóa được khi không còn key hoặc hồ sơ thiết bị. Hồ sơ chỉ
+xóa được khi không còn gắn key/bản cài. Nếu còn liên kết, giao diện báo
+rõ thứ tự xử lý; API cũng chặn độc lập với giao diện.
+Để làm lại khách test: xóa các key test, tải lại danh sách hồ sơ và xóa
+hồ sơ test, rồi tải lại danh sách khách và xóa khách test. Có thể bỏ
+gắn key trong Chỉnh sửa hồ sơ nếu hồ sơ chưa có bản cài.
+Không tự xóa dây chuyền key khi xóa khách hoặc hồ sơ. Mỗi lần xóa yêu
+cầu admin, Origin hợp lệ, phiên bản bản ghi hiện tại và ghi audit trong
+cùng transaction; xóa lặp/đồng thời chỉ ghi nhận một thao tác thành công.
+Đây là xóa bản ghi quản lý, không phải tính năng dọn sạch file trên VPS:
+file IPA và chứng chỉ đã lưu chưa được tự thu gom khi xóa key. Không
+gỡ app hoặc xóa Keychain trên thiết bị khách. Lịch sử thao tác vẫn giữ.
+Không cần migration mới ngoài 005/006/007 hiện có. Cần đưa code mới lên
+main rồi build và khởi động lại web trên VPS mới có các nút này.
+
 TƯƠNG THÍCH
 Migration 007-device-profiles.sql chỉ tạo bảng mới. Không sửa bảng license,
 device, cặp ID Nemo, key_hash, expires_at hoặc phiên bản key hiện hành.

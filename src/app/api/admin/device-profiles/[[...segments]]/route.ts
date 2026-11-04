@@ -1,6 +1,6 @@
 import { currentAdmin } from "@/lib/auth";
 import { sameOrigin } from "@/lib/http";
-import { listDeviceProfiles, saveDeviceProfile } from "@/lib/device-profiles";
+import { deleteDeviceProfile, listDeviceProfiles, saveDeviceProfile } from "@/lib/device-profiles";
 import { installJson, installJsonBody, limitedBody } from "@/lib/install-http";
 import { InputError } from "@/lib/validation";
 import { inspectProvisioningProfile } from "@/lib/profile-inspection";
@@ -29,6 +29,7 @@ async function handle(request: Request, context: Context) {
     }
     if (request.method === "POST" && !parts.length) return installJson(await saveDeviceProfile(admin, await installJsonBody(request, 16384)), 201);
     if (request.method === "PATCH" && parts.length === 1) return installJson(await saveDeviceProfile(admin, await installJsonBody(request, 16384), parts[0]));
+    if (request.method === "DELETE" && parts.length === 1) return installJson(await deleteDeviceProfile(admin, parts[0], await installJsonBody(request)));
     return installJson({ error: "Không tìm thấy chức năng." }, 404);
   } catch (e) {
     if (e instanceof SigningError) return installJson({ error: signingError(e.code) }, 400);
@@ -40,3 +41,4 @@ async function handle(request: Request, context: Context) {
 export const GET = handle;
 export const POST = handle;
 export const PATCH = handle;
+export const DELETE = handle;

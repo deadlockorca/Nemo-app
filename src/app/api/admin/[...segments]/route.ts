@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { currentAdmin } from "@/lib/auth";
 import { sameOrigin } from "@/lib/http";
-import { createLicense, changeLicense, getLicenseIdentity, saveLicenseIdentity, InputError, listRecords, record, releaseDevice, saveCustomer, type Section } from "@/lib/management";
+import { createLicense, changeLicense, deleteCustomer, getLicenseIdentity, saveLicenseIdentity, InputError, listRecords, record, releaseDevice, saveCustomer, type Section } from "@/lib/management";
 
 const sections: Section[] = ["customers", "licenses", "devices", "activity"];
 const json = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -38,6 +38,7 @@ async function handle(request: Request, context: Context) {
     }
     if (request.method === "POST" && parts.length === 1 && section === "customers") return json(await saveCustomer(admin, await body(request)), 201);
     if (request.method === "PATCH" && parts.length === 2 && section === "customers") return json(await saveCustomer(admin, await body(request), id));
+    if (request.method === "DELETE" && parts.length === 2 && section === "customers") return json(await deleteCustomer(admin, id, await body(request)));
     if (request.method === "POST" && parts.length === 1 && section === "licenses") return json(await createLicense(admin, await body(request)), 201);
     if (request.method === "POST" && parts.length === 3 && section === "licenses") return json(await changeLicense(admin, id, operation, await body(request)));
     if (request.method === "POST" && parts.length === 3 && section === "devices" && operation === "release") return json(await releaseDevice(admin, id, await body(request)));
@@ -51,3 +52,4 @@ async function handle(request: Request, context: Context) {
 export const GET = handle;
 export const POST = handle;
 export const PATCH = handle;
+export const DELETE = handle;
