@@ -1,0 +1,55 @@
+NEMO — DỌN FILE DƯ LOCAL NGÀY 05/11/2026
+
+Đã xóa 6.408 file, tổng dung lượng logic 1.815.909.686 byte (~1,82 GB).
+Con số là kích thước các file đã xóa, không phải cam kết dung lượng vật lý
+trống tăng đúng bằng đó trên APFS/ổ đĩa có nén, clone hoặc snapshot.
+
+CÁC NHÓM ĐÃ DỌN
+Trong repo /Users/bowthoois/Documents/GitHub/Nemo-app:
+  .next/                         Build/dev cache cũ, không chạy hiện tại.
+  .next-identity/                Build thử cũ.
+  .local/profiles-build/         Đầu ra lần build thử đã bỏ.
+  .local/profiles-next/          Cache dev đã dừng; preview dùng build khác.
+  web/.next/                    Cache phát sinh trong thư mục web lồng dư.
+  web/                          Xóa thư mục lồng này sau khi đã rỗng.
+  tsconfig.tsbuildinfo           Cache TypeScript có thể tạo lại.
+  scripts/ios/__pycache__/*.pyc   Chỉ xóa bytecode khi file .py gốc còn.
+
+Trong workspace /Users/bowthoois/Documents/Nemo:
+  tools/rea/downloads/ghidra.zip
+  tools/rea/downloads/jdk.tar.gz
+Hai archive là bộ cài tải xuống, đã kiểm tra SHA-256 theo bản ghi chính thức
+và xác nhận công cụ đã giải nén vẫn hiện diện. Giữ nguyên Ghidra/JDK đã cài,
+mã native đã build và analysis/rea/*download-verification.json chứa URL/hash
+để tải lại khi cần. Các script hiện có không tham chiếu hai archive này.
+
+Đã dọn thêm .DS_Store trong các thư mục được rà soát. tsconfig.json bỏ bốn
+include trỏ đến type sinh tự động trong hai build thử cũ đã xóa; giữ đường
+dẫn .next mặc định và .next-device-profiles đang dùng.
+
+ĐÃ GIỮ
+  - Toàn bộ source, tests, migrations, package/lock files và lịch sử Git.
+  - IPA gốc, IPA trắng, các bản IPA cũ, backup và manifest/hash build.
+  - Báo cáo phân tích/trace, source native và công cụ cần để đối chiếu bản mới.
+  - .env, khóa license, kho chứng chỉ mã hóa, database local/test và VM Linux.
+  - Dependencies và SDK/tool đã cài, không tự gỡ các công cụ đang dùng.
+  - .next-device-profiles/ đang phục vụ preview http://localhost:3117.
+  - Hồ sơ bàn giao PROJECT-HANDOFF.txt và README đang chờ commit.
+Không xóa hoặc thay đổi dữ liệu trên VPS.
+
+Sau khi dọn, một tiến trình next dev đang chạy đã tạo lại .next/dev. Phần
+cache mới này được giữ; không tiếp tục xóa cache mà tiến trình đang dùng.
+Kiểm tra sau dọn: tsc --noEmit --incremental false qua, preview cổng 3117
+trả HTTP 200, SHA-256 IPA trắng vẫn là
+36fe99dfbfd454d0bf684db7bc8365f69237a130bb7519b5a90f0a0394bc6768.
+Không có file source đang được Git theo dõi bị xóa.
+
+NHẬT KÝ CHI TIẾT LOCAL
+  .local/cleanup-2026-11-05/plan.json
+  .local/cleanup-2026-11-05/deleted.json
+Hai file này chỉ ghi đường dẫn/lý do/kích thước, không chứa nội dung bí mật.
+
+KHÔI PHỤC CACHE KHI CẦN
+Build lại web bằng npm run build; dev cache được tạo khi npm run dev.
+TypeScript/Python tự sinh lại cache. Tải lại archive công cụ theo URL/hash
+trong bản ghi download-verification, không cần archive để chạy bản đã cài.

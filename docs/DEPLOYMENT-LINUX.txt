@@ -8,6 +8,10 @@ phiên/link tải hiện có; không đổi key, hai ID, binding hoặc thời h
 Mã đang tồn tại được thêm 15 phút từ lúc migration chạy. Sau đó dùng Cấp mã
 mới để mở lại 15 phút, tái dùng IPA đã ký. App đã cài không bị ảnh hưởng.
 
+Cập nhật thư viện IPA: áp dụng 009-ipa-library.sql trước khi chạy code mới.
+Mỗi IPA tải lên thư viện một lần, dùng chung cho nhiều bản cài. Các bản cài
+cũ giữ nguyên nguồn/đầu ra; không nhập lại DB local. Xem IPA-LIBRARY.txt.
+
 NGUYÊN TẮC GIỮ DỊCH VỤ ĐANG DÙNG
 Giữ DB, tài khoản admin, dữ liệu key/device và LICENSE_PRIVATE_KEY_FILE hiện
 hành. Không chạy license:keygen, admin:create hoặc nhập DB test trên VPS.

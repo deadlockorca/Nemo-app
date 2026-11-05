@@ -7,6 +7,7 @@ import { loadSecret, objectPath, removeObject, runPackager, SigningError, storeO
 import { signingError, type CustomerInstall, type PackageMetadata } from "./installation-types";
 import type { Admin } from "./auth";
 import { attachVerifiedInstallation } from "./device-profiles";
+import { activeIpaReleases, sourceRelease } from "./ipa-releases";
 
 type InstallRow = RowDataPacket & {
   id: string; license_id: string; label: string; apple_udid: string; source_key: string;
@@ -26,14 +27,15 @@ async function transaction<T>(fn: (db: PoolConnection) => Promise<T>) {
 }
 export async function adminInstallations() {
   const [items] = await getDb().execute<RowDataPacket[]>(`SELECT i.id, i.license_id, i.label, i.apple_udid, i.metadata, i.state, i.created_at,
-    i.code_expires_at, (i.code_expires_at IS NULL OR i.code_expires_at <= UTC_TIMESTAMP(3)) AS code_expired,
+    i.release_id, r.label AS release_label, i.code_expires_at, (i.code_expires_at IS NULL OR i.code_expires_at <= UTC_TIMESTAMP(3)) AS code_expired,
     c.name AS customer_name, l.key_hint, j.status AS job_status, j.error_code FROM ios_installations i
     JOIN licenses l ON l.id = i.license_id JOIN customers c ON c.id = l.customer_id
+    LEFT JOIN ios_ipa_releases r ON r.id = i.release_id
     LEFT JOIN ios_signing_jobs j ON j.installation_id = i.id ORDER BY i.created_at DESC, i.id DESC LIMIT 100`);
   const [licenses] = await getDb().execute<RowDataPacket[]>(`SELECT l.id, l.key_hint, c.name AS customer_name FROM licenses l
     JOIN customers c ON c.id = l.customer_id JOIN license_identities li ON li.license_id = l.id
     WHERE ${eligible} ORDER BY l.id DESC LIMIT 200`);
-  return { items: items.map(item => ({ ...item, code_expired: Number(item.code_expired) })), licenses };
+  return { items: items.map(item => ({ ...item, code_expired: Number(item.code_expired) })), licenses, releases: await activeIpaReleases() };
 }
 export async function createInstallation(admin: Admin, form: FormData) {
   const licenseId = id(form.get("licenseId"));
@@ -43,35 +45,43 @@ export async function createInstallation(admin: Admin, form: FormData) {
   if (typeof label !== "string" || !label.trim() || label.trim().length > 120 || /\u0000/.test(label)) throw new InputError("Tên bản cài cần 1–120 ký tự.");
   if (typeof udid !== "string" || !/^(?:[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}|[0-9A-Fa-f]{40})$/.test(udid)) throw new InputError("Cần UDID Apple của iPhone/iPad, không phải device_id của Nemo.");
   if (typeof password !== "string" || password.length > 512 || /\u0000/.test(password)) throw new InputError("Mật khẩu chứng chỉ không hợp lệ.");
-  const files = [form.get("ipa"), form.get("p12"), form.get("profile")];
-  if (files.some((f) => !(f instanceof File) || !f.size)) throw new InputError("Cần chọn đủ IPA trắng, .p12 và .mobileprovision.");
-  const [ipa, p12, profile] = files as File[];
-  if (ipa.size > 150 * 1024 * 1024 || p12.size > 1024 * 1024 || profile.size > 2 * 1024 * 1024) throw new InputError("Tệp tải lên vượt dung lượng cho phép.", 413);
+  const releaseId = form.get("releaseId");
+  if (releaseId && form.get("ipa") instanceof File && (form.get("ipa") as File).size) throw new InputError("Chọn phiên bản trong thư viện hoặc tải IPA, không chọn cả hai.");
+  const release = releaseId ? await sourceRelease(releaseId) : null;
+  const ipa = form.get("ipa"), p12 = form.get("p12"), profile = form.get("profile");
+  if (!(p12 instanceof File) || !p12.size || !(profile instanceof File) || !profile.size) throw new InputError("Cần chọn .p12 và .mobileprovision.");
+  if (!release && (!(ipa instanceof File) || !ipa.size)) throw new InputError("Chọn phiên bản IPA trắng trong thư viện.");
+  if ((ipa instanceof File && ipa.size > 150 * 1024 * 1024) || p12.size > 1024 * 1024 || profile.size > 2 * 1024 * 1024) throw new InputError("Tệp tải lên vượt dung lượng cho phép.", 413);
   const [allowed] = await getDb().execute<RowDataPacket[]>(`SELECT l.id FROM licenses l JOIN license_identities li ON li.license_id = l.id WHERE l.id = ? AND ${eligible}`, [licenseId]);
   if (!allowed.length) throw new InputError("Key cần còn hiệu lực và đã gán hai ID cho IPA trắng.", 409);
-  const source = await storeObject(Buffer.from(await ipa.arrayBuffer()), "ipa");
+  const source = release ? String(release.source_key) : await storeObject(Buffer.from(await (ipa as File).arrayBuffer()), "ipa");
   let encrypted: string | undefined;
   try {
     const secrets: SigningSecrets = { password, p12: Buffer.from(await p12.arrayBuffer()).toString("base64"), profile: Buffer.from(await profile.arrayBuffer()).toString("base64") };
     const metadata = await runPackager({ ...secrets, mode: "inspect", source: objectPath(source, "ipa"), udid: udid.toUpperCase() });
+    if (release && metadata.sourceSha256 !== release.source_sha256) throw new SigningError("source_changed");
     encrypted = await storeObject(Buffer.from(JSON.stringify(secrets)), "secret");
     const installId = randomId(), code = randomUUID();
     const expiresAt = await transaction(async (db) => {
       const [current] = await db.execute<RowDataPacket[]>(`SELECT l.id, l.customer_id FROM licenses l JOIN license_identities li ON li.license_id = l.id WHERE l.id = ? AND ${eligible} FOR UPDATE`, [licenseId]);
       if (!current.length) throw new InputError("Key đã thay đổi. Hãy kiểm tra lại.", 409);
-      await db.execute(`INSERT INTO ios_installations (id, license_id, label, apple_udid, code_hash, source_key, secrets_key, metadata, code_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TIMESTAMPADD(SECOND, ?, UTC_TIMESTAMP(3)))`,
-        [installId, licenseId, label.trim(), udid.toUpperCase(), tokenHash(code), source, encrypted!, JSON.stringify(metadata), INSTALL_CODE_SECONDS]);
+      if (release) {
+        const [available] = await db.execute<RowDataPacket[]>(`SELECT id FROM ios_ipa_releases WHERE id = ? AND state = 'active' AND source_key = ? AND source_sha256 = ? FOR SHARE`, [release.id, source, metadata.sourceSha256]);
+        if (!available.length) throw new InputError("Phiên bản IPA vừa được lưu trữ. Hãy chọn phiên bản khác.", 409);
+      }
+      await db.execute(`INSERT INTO ios_installations (id, license_id, label, apple_udid, code_hash, source_key, secrets_key, metadata, release_id, code_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TIMESTAMPADD(SECOND, ?, UTC_TIMESTAMP(3)))`,
+        [installId, licenseId, label.trim(), udid.toUpperCase(), tokenHash(code), source, encrypted!, JSON.stringify(metadata), release?.id || null, INSTALL_CODE_SECONDS]);
       await attachVerifiedInstallation(db, admin, { customerId: String(current[0].customer_id), licenseId,
         udid: udid.toUpperCase(), label: label.trim(), signingLabel: typeof signingLabel === "string" ? signingLabel.trim() : "",
         installationId: installId, metadata });
       await db.execute(`INSERT INTO audit_events (admin_id, action, target_id, details) VALUES (?, 'installation.created', ?, ?)`,
-        [admin.id, installId, JSON.stringify({ licenseId, sourceSha256: metadata.sourceSha256, team: metadata.team })]);
+        [admin.id, installId, JSON.stringify({ licenseId, releaseId: release?.id || null, sourceSha256: metadata.sourceSha256, team: metadata.team })]);
       const [expiry] = await db.execute<RowDataPacket[]>(`SELECT code_expires_at FROM ios_installations WHERE id = ?`, [installId]);
       return expiry[0].code_expires_at as Date;
     });
     return { id: installId, code, metadata, expiresAt };
   } catch (e) {
-    await removeObject(source, "ipa");
+    if (!release) await removeObject(source, "ipa");
     if (encrypted) await removeObject(encrypted, "secret");
     if (e instanceof SigningError) throw new InputError(signingError(e.code));
     throw e;

@@ -137,6 +137,18 @@ def archive(ipa):
         raise Invalid('invalid_ipa') from None
 
 
+def inspect_source(ipa):
+    z, _, info = archive(ipa)
+    with z:
+        version = str(info.get('CFBundleShortVersionString', '1'))
+        build = str(info.get('CFBundleVersion', '1'))
+        if not all(re.fullmatch(r'[A-Za-z0-9._+\-]{1,80}', value) for value in (version, build)):
+            raise Invalid('invalid_ipa')
+        return {'name': 'Nemo', 'bundle': info['CFBundleIdentifier'],
+                'version': version, 'build': build,
+                'sourceSha256': sha(Path(ipa).read_bytes()), 'blankIdentity': True}
+
+
 def inspect(ipa, p12_data, password, profile_data, udid, stage):
     if not re.fullmatch(r'(?:[0-9A-F]{8}-[0-9A-F]{16}|[0-9A-Fa-f]{40})', udid):
         raise Invalid('invalid_apple_udid')
@@ -166,17 +178,11 @@ def inspect(ipa, p12_data, password, profile_data, udid, stage):
     ous = [a.value for a in cert.subject.get_attributes_for_oid(x509.NameOID.ORGANIZATIONAL_UNIT_NAME)]
     if not team or team not in ous or not ent.get('application-identifier', '').startswith(team + '.'):
         raise Invalid('certificate_profile_mismatch')
-    z, app, info = archive(ipa)
-    with z:
-        metadata = {
-            'name': 'Nemo', 'bundle': info['CFBundleIdentifier'], 'version': str(info.get('CFBundleShortVersionString', '1')),
-            'build': str(info.get('CFBundleVersion', '1')), 'sourceSha256': sha(Path(ipa).read_bytes()),
-            'team': team, 'certificateSha256': cert.fingerprint(hashes.SHA256()).hex(),
-            'certificateExpiresAt': cert.not_valid_after_utc.isoformat(), 'profileName': str(profile.get('Name', ''))[:200],
-            'profileExpiresAt': expires.isoformat(), 'profileDeviceCount': len(devices),
-            'signingMode': 'development' if ent.get('get-task-allow') else 'ad-hoc',
-            'blankIdentity': True,
-        }
+    metadata = {**inspect_source(ipa),
+                'team': team, 'certificateSha256': cert.fingerprint(hashes.SHA256()).hex(),
+                'certificateExpiresAt': cert.not_valid_after_utc.isoformat(), 'profileName': str(profile.get('Name', ''))[:200],
+                'profileExpiresAt': expires.isoformat(), 'profileDeviceCount': len(devices),
+                'signingMode': 'development' if ent.get('get-task-allow') else 'ad-hoc'}
     return metadata, cert, profile
 
 
@@ -344,11 +350,16 @@ if __name__ == '__main__':
     try:
         signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(Invalid('worker_interrupted')))
         data = json.load(sys.stdin)
-        if data.get('mode') not in ('inspect', 'sign', 'inspect-profile'):
+        if data.get('mode') not in ('inspect', 'sign', 'inspect-profile', 'inspect-source'):
             raise Invalid('unsupported_signer')
         parent = Path(data['tempRoot'])
         with tempfile.TemporaryDirectory(prefix='ios-', dir=parent) as tmp:
-            result = inspect_profile(data, Path(tmp)) if data['mode'] == 'inspect-profile' else sign(data, Path(tmp))
+            if data['mode'] == 'inspect-profile':
+                result = inspect_profile(data, Path(tmp))
+            elif data['mode'] == 'inspect-source':
+                result = inspect_source(Path(data['source']))
+            else:
+                result = sign(data, Path(tmp))
         print(json.dumps(result))
     except Invalid as e:
         print(json.dumps({'error': str(e)})); sys.exit(1)

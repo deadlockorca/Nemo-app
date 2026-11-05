@@ -5,9 +5,10 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { formatDate } from "@/lib/management-types";
 import { signingError, type InstallationItem } from "@/lib/installation-types";
 import { ProfileUpload } from "./profile-upload";
+import type { IpaRelease } from "@/lib/ipa-release-types";
 import type { ProfileInspection } from "@/lib/device-profile-types";
 
-type Data = { items: InstallationItem[]; licenses: { id: string; key_hint: string; customer_name: string }[] };
+type Data = { releases: IpaRelease[]; items: InstallationItem[]; licenses: { id: string; key_hint: string; customer_name: string }[] };
 const states: Record<string, string> = { queued: "Đang xếp hàng", signing: "Đang ký", ready: "Sẵn sàng", failed: "Cần thử lại" };
 export function Installations({ initial }: { initial: Data }) {
   const router = useRouter();
@@ -71,16 +72,16 @@ export function Installations({ initial }: { initial: Data }) {
         <label>Mã bộ chứng chỉ<input name="signingLabel" maxLength={120} placeholder="Ví dụ: HNF6HG" disabled={busy} /><small>Tên dễ nhớ sẽ được lưu cùng hồ sơ thiết bị.</small></label>
         <ProfileUpload required disabled={busy} onBusy={setInspecting} onRead={info => { setInspection(info); setAppleUdid(info.udids.length === 1 ? info.udids[0] : ""); }} />
         <label>UDID Apple của máy{inspection && inspection.udids.length > 1 ? <select name="appleUdid" required value={appleUdid} onChange={e => setAppleUdid(e.target.value)} disabled={busy || inspecting}><option value="">Chọn đúng UDID máy khách</option>{inspection.udids.map(u => <option key={u} value={u}>{u}</option>)}</select> : <input name="appleUdid" value={appleUdid} onChange={e => setAppleUdid(e.target.value.toUpperCase())} spellCheck={false} autoCapitalize="characters" placeholder="Chọn profile để tự đọc UDID" required disabled={busy || inspecting} />}<small>{inspection ? `${inspection.udids.length} UDID trong profile ${inspection.profileName}` : "Khác device_id 36 ký tự của Nemo."}</small></label>
-        <label>IPA trắng<input name="ipa" type="file" accept=".ipa" required disabled={busy} /><small>IPA trắng NemoBlankIdentity-1, tối đa 150 MB.</small></label>
+        <label>Phiên bản IPA trắng<select name="releaseId" required disabled={busy} defaultValue=""><option value="">Chọn phiên bản trong thư viện</option>{data.releases.map(r => <option key={r.id} value={r.id}>{r.label} · {r.metadata.version} ({r.metadata.build})</option>)}</select><small><Link href="/admin/ipa-library"><u>{data.releases.length ? "Quản lý thư viện IPA trắng" : "Tải IPA trắng lên thư viện trước"}</u></Link>. Mỗi file chỉ cần tải lên một lần.</small></label>
         <label>Chứng chỉ .p12<input name="p12" type="file" accept=".p12,.pfx" required disabled={busy} /></label>
         <label>Mật khẩu .p12<input name="password" type="password" maxLength={512} autoComplete="off" disabled={busy} /></label>
         <p className="field-help">Sau khi kiểm tra bộ tệp thành công, hồ sơ thiết bị sẽ tự lưu UDID và hạn bộ ký. Mã cài có hiệu lực 15 phút kể từ lúc cấp. Key và hai ID Nemo giữ nguyên.</p>
-        <button className="primary-button" disabled={busy || inspecting}>{busy ? "Đang tải và kiểm tra bộ tệp…" : "Kiểm tra và tạo mã cài"}</button>
+        <button className="primary-button" disabled={busy || inspecting || !data.releases.length}>{busy ? "Đang tải và kiểm tra bộ tệp…" : "Kiểm tra và tạo mã cài"}</button>
       </form>}
     </section>}
     <section className="activity-card install-list"><div className="section-heading"><div><span className="eyebrow">CÁC BẢN CÀI</span><h2>{data.items.length} bản gần nhất</h2></div></div>
       {!data.items.length ? <p className="empty-state">Chưa có bản cài. Tạo bản đầu tiên để khách có thể chuẩn bị và tải Nemo.</p> : <div className="table-scroll"><table className="records-table"><thead><tr><th>Bản cài</th><th>Khách & key</th><th>Chứng chỉ</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{data.items.map((i) => <tr key={i.id}>
-        <td><strong>{i.label}</strong><small>Nemo {i.metadata.version} · …{i.apple_udid.slice(-8)}</small><small>{formatDate(i.created_at)}</small><small>Mã cài hết hạn: {formatDate(i.code_expires_at)}</small></td>
+        <td><strong>{i.label}</strong><small>Nemo {i.metadata.version} · …{i.apple_udid.slice(-8)}</small><small>{i.release_label || "IPA tải riêng trước đây"}</small><small>{formatDate(i.created_at)}</small><small>Mã cài hết hạn: {formatDate(i.code_expires_at)}</small></td>
         <td>{i.customer_name}<small>…{i.key_hint}</small></td>
         <td><span>Team {i.metadata.team}</span><small>Hết hạn {formatDate(i.metadata.profileExpiresAt)}</small><small>{i.metadata.profileDeviceCount} máy trong profile · {i.metadata.signingMode === "development" ? "Development" : "Ad Hoc"}</small></td>
         <td><span className="status-pill">{i.state === "revoked" ? "Đã thu hồi" : Number(i.code_expired) ? "Mã cài hết hạn" : states[i.job_status || ""] || "Chờ khách chuẩn bị"}</span>{i.job_status === "failed" && <small className="install-error-detail">{signingError(i.error_code)}</small>}</td>

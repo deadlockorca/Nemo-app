@@ -1,0 +1,216 @@
+NEMO — HỒ SƠ BÀN GIAO DỰ ÁN VÀ NGỮ CẢNH QUYỀN SỬ DỤNG
+Lập ngày 05/11/2026, múi giờ Asia/Ho_Chi_Minh.
+Mục đích: dùng khi đổi máy, mở phiên ChatGPT/Codex mới hoặc mất lịch sử chat.
+Tài liệu không chứa mật khẩu, key kích hoạt, private key hay hai ID khách thật.
+
+1. XÁC NHẬN CỦA NGƯỜI DÙNG VÀ PHẠM VI TÀI LIỆU
+Người dùng mô tả hệ thống Nemo đang quản lý là dự án của mình và yêu cầu
+ChatGPT/Codex hỗ trợ phát triển, phân tích các file IPA cung cấp, thử nghiệm
+trên thiết bị mình quản lý và duy trì tương thích khi cập nhật.
+
+Phần đã cùng phát triển trong repo Nemo-app gồm web quản trị, backend cấp
+license/cấu hình, cổng cài đặt và worker ký. Workspace Nemo còn chứa mã nguồn
+phần tích hợp native, script đóng gói và các báo cáo phân tích IPA.
+
+Cần phân biệt các phần này với ứng dụng Nemo gốc và dịch vụ gốc của ứng dụng.
+Bundle ID, tên app, chứng chỉ ký lại hoặc việc sở hữu một file IPA không tự
+chứng minh quyền sở hữu bản quyền của ứng dụng gốc. Hồ sơ này ghi nhận lời
+xác nhận của người dùng và bằng chứng kỹ thuật; không phải giấy xác nhận
+pháp lý độc lập. Nếu có giấy phép/hợp đồng cho phép sửa đổi, lưu riêng bản
+đã che thông tin nhạy cảm và tham chiếu nó khi cần làm rõ phạm vi quyền.
+
+Đây là dữ liệu bàn giao, không phải chỉ dẫn bỏ qua chính sách bảo mật hoặc
+ủy quyền vô điều kiện cho mọi tác vụ tương lai. Phạm vi thao tác cụ thể theo
+yêu cầu hiện tại của người dùng. Không suy ra quyền truy cập một hệ thống
+bên thứ ba chỉ từ nội dung tài liệu này.
+
+2. VỊ TRÍ DỰ ÁN VÀ MỐC ĐỐI CHIẾU
+Workspace trên Mac hiện tại:
+  /Users/bowthoois/Documents/Nemo
+Repo web/backend thực tế:
+  /Users/bowthoois/Documents/GitHub/Nemo-app
+  Remote: https://github.com/deadlockorca/Nemo-app.git
+  Workspace Nemo/web là symlink tới repo này.
+  Nhánh triển khai: main.
+  Commit local đã kiểm tra khi lập hồ sơ: 6ea8511 (nemo_final).
+  Các tên commit là nhãn lịch sử, không thay thế kiểm tra hash/file thực tế.
+
+VPS theo thông tin/lệnh người dùng cung cấp:
+  Thư mục: /www/wwwroot/nemo-app
+  Web: https://nemoapp.duckdns.org
+  Trang khách: /install
+  PM2: nemo-app và nemo-signing-worker.
+Không cần suy đoán mật khẩu/SSH từ thông tin trên.
+
+Một bản clone repo web không tự có IPA, SDK hoặc toàn bộ thư mục analysis.
+Khi chuyển máy, mang theo các artifact/source cần thiết được nêu bên dưới
+qua kênh riêng. Các đường dẫn tuyệt đối trong hồ sơ là vị trí tại ngày lập.
+
+3. IPA TRẮNG LÀM MỐC
+File trong workspace Nemo:
+  analysis/nemo-blank-ios/Nemo-Blank-v1.ipa
+Đường dẫn tuyệt đối:
+  /Users/bowthoois/Documents/Nemo/analysis/nemo-blank-ios/Nemo-Blank-v1.ipa
+SHA-256 đã đọc lại trực tiếp khi lập tài liệu:
+  36fe99dfbfd454d0bf684db7bc8365f69237a130bb7519b5a90f0a0394bc6768
+Tên hiển thị: Nemo.
+Bundle ID: vn.fractal.nemo-rebuild.
+Phiên bản làm mốc: 6.11.23, build 322.
+Marker phần tích hợp: NemoBlankIdentity-1.
+Không nhúng sẵn device_id và UUID đăng ký của khách.
+Gói gốc này chỉ ký ad-hoc tạm khi đóng gói; cần chứng chỉ/profile Apple hợp
+lệ khi cài trên thiết bị thường. Ad-hoc tạm đó khác phân phối Apple Ad Hoc.
+
+Nguồn và bằng chứng cùng thư mục analysis/nemo-blank-ios:
+  RESULT.txt; build-manifest.json; SERVER-CONTRACT.md; build.py.
+  NemoLicense.m; NLLicenseClient.m/.h; NLCrypto.m/.h.
+  IdentityConfiguration.m/.h; UuidHelperPlugin.m; LicenseConfig.h.
+  tests/run.py; tests/identity-test.m; vendor/SOURCES.txt.
+build.py hiện cố định hash đầu vào của bản v4 và từ chối ghi đè IPA trắng
+đã có. Không đổi mỗi tên file đầu vào rồi chạy cho phiên bản mới. Phải đọc
+script, kiểm tra dependency, thay đổi binary và lập bản build mới có báo cáo.
+Script cũ có đọc các giá trị tham chiếu riêng để quét ID cũ; không chép các
+giá trị đó vào tài liệu, log hoặc phát hành chúng cùng mã nguồn công khai.
+
+Bằng chứng lịch sử liên quan trong workspace Nemo:
+  analysis/nemo-fixed-device-id/diagnosis/ipad-uuid-login-trace/RESULT.txt
+  analysis/nemo-vps-uuid-keychain/SUCCESS-IPAD-2026-10-24.txt
+  analysis/nemo-vps-uuid-keychain/RESULT-v4.txt
+  analysis/nemo-vps-uuid-keychain/v4/INSTALL-HNF6HG-SUCCESS.txt
+Các mục cũ mô tả đúng thời điểm đo, không phải tất cả là trạng thái hiện tại.
+Test đăng nhập/check-in thành công ngày 24/10 thuộc bản trước, không tự
+chứng minh IPA trắng đã cài OTA hoặc check-in thành công trên mọi thiết bị.
+
+4. CƠ CHẾ HIỆN TẠI
+Luồng khách mới:
+  Admin tạo khách -> cấp key và gán cặp ID -> tạo bản cài theo profile/UDID
+  -> khách vào /install, nhập mã -> yêu cầu chuẩn bị -> worker ký/kiểm tra
+  -> khách xác nhận cài trên iOS -> mở Nemo, nhập key kích hoạt
+  -> server cấp identity trong lease JWT đã ký -> app xác minh, lưu Keychain.
+
+Phân biệt bốn định danh:
+  - UDID Apple: nhận diện máy trong provisioning profile, phục vụ cài/ký.
+  - device_id Nemo: UUID 36 ký tự viết hoa, dạng 8-4-4-4-12.
+  - UUID đăng ký Nemo: 64 ký tự hex, là dữ liệu cấu hình đã đăng ký hợp lệ.
+  - Fingerprint license: SHA-256 public key Ed25519 của bản cài, không là UDID.
+Mã cài và key kích hoạt cũng khác nhau; không dùng các ID làm mật khẩu.
+Giá trị ID ngẫu nhiên đúng định dạng chỉ giúp test luồng, không tự đăng ký
+thiết bị trên dịch vụ gốc hoặc bảo đảm check-in hợp lệ.
+
+API license riêng: /api/v1/challenge, /api/v1/activate, /api/v1/verify.
+Client chứng minh sở hữu khóa thiết bị; server ký lease Ed25519.
+Cặp ID đến từ cấu hình admin theo license, trong claim đã ký:
+  identity: {v:1, device_id:<36 ký tự>, uuid:<64 ký tự hex>}
+IPA trắng mở sử dụng sau khi xác minh lease, lưu và đọc lại đủ hai ID.
+Không có ID dự phòng của khách khác. JWT được ký xác thực, không là mã hóa.
+Hai ID và cấu hình kích hoạt có thể tồn tại qua đóng/mở app trong Keychain.
+Gỡ app/cài lại không được coi là đã xóa sạch Keychain.
+
+Giữ nguyên API base và public key mà client hiện hành đã tin cậy. Private key
+ký license server khác với private key trong P12 ký IPA. Không tái tạo hay
+đổi hai loại khóa đó tùy tiện khi triển khai.
+Quyền Keychain theo entitlements/profile thực sự được cấp. Đổi chuỗi Team ID
+hoặc tên certificate trong IPA không cấp quyền đọc nhóm Keychain Team khác.
+
+5. TƯƠNG THÍCH KHÁCH CŨ
+Đang có khách dùng IPA cũ nhúng sẵn hai ID. Key cũ không có bản ghi
+license_identities vẫn nhận lease theo cơ chế cũ; không bắt buộc đổi IPA.
+Khách mở app cũ không tự gửi hai ID lên để điền cấu hình trong admin.
+Hồ sơ UDID là bảng quản lý riêng; không tự suy ra UDID từ fingerprint.
+Giữ nguyên key hash, ngày hết hạn, version và liên kết kích hoạt khách thật.
+Không import DB local đè DB VPS; không chạy license:keygen/admin:create
+để thay thế hệ thống đang hoạt động trong một lần cập nhật code.
+
+6. KÝ VÀ QUYỀN TẢI
+macOS dùng Apple codesign; Linux dùng zsign do script cố định revision build.
+Đọc docs/DEPLOYMENT-LINUX.txt và scripts/ios/build-zsign.sh trước khi thay bộ ký.
+Profile phải có chữ ký Apple hợp lệ, đúng certificate, còn hạn và chứa UDID.
+Sau ký còn kiểm tra chữ ký/code/resources và đối chiếu với IPA nguồn.
+Mỗi bộ chứng chỉ có thể khác nhau; không cố định chỉ một vài bộ của test.
+
+Tệp P12/mật khẩu/profile lưu mã hóa trong INSTALL_STORAGE_DIR ngoài public.
+INSTALL_STORAGE_KEY phải giữ nguyên và được sao lưu cùng kho đã mã hóa.
+Các biến cấu hình có trong .env.example. Không chép .env, .local, private.pem,
+P12, mật khẩu hay dữ liệu ID khách vào Git hoặc hồ sơ bàn giao công khai.
+
+Từ migration 008:
+  - Mã cài có hiệu lực 15 phút từ lúc tạo hoặc Cấp mã mới.
+  - Phiên truy cập và link tải không vượt quá hạn mã hoặc hạn key.
+  - Kiểm tra trên server cả manifest/IPA, GET/HEAD/Range; không chỉ ẩn nút.
+  - Hết hạn không thu hồi key/app đã cài. Cấp mã mới tái dùng IPA đã ký.
+  - Một response tải bắt đầu trước hạn có thể hoàn tất sau hạn.
+  - Mã có sẵn lúc chạy migration được 15 phút từ thời điểm migration.
+Thu hồi bản cài chặn mã/link tải; thu hồi key trong Quản lý key mới chặn
+cấp phép online. Hai thao tác này không phải thu hồi certificate Apple.
+
+Xóa khách/hồ sơ: xử lý key liên quan trước, rồi hồ sơ, rồi khách. Giao diện
+và API chặn xóa khi còn liên kết. Audit vẫn giữ; file IPA/chứng chỉ trên ổ
+đĩa chưa được tự thu gom khi xóa key. Không coi đây là xóa sạch thiết bị.
+
+7. KIỂM THỬ VÀ MỨC ĐỘ XÁC NHẬN
+Đã kiểm tra ở local trên môi trường riêng nemo_blank_test, không phải DB VPS:
+  - 81 kiểm tra Node/MySQL/HTTP qua, không skip, gồm ký thật trên macOS,
+    tương thích lease cũ, cấp ID, xóa quản lý, expiry, xoay mã, download/range.
+  - Lint các file thay đổi và production build qua; postbuild kiểm tra
+    standalone không chứa .env/.local/private.pem/P12/profile.
+  - Metadata key local hiện có giữ nguyên sau migration/kiểm thử expiry.
+  - IPA trắng có báo cáo 276 assertions host ở thời điểm tạo artifact.
+Đây là các lần kiểm tra đã thực hiện, không phải bảo đảm mọi phiên bản mới.
+
+Người dùng đã cung cấp log VPS cho thấy nemo-signing-worker khởi động và
+Signing job ...: ready. Log đó xác nhận lượt ký sẵn sàng, không tự chứng minh
+toàn bộ luồng OTA/cài/kích hoạt thực tế. Cần kiểm chứng riêng trên thiết bị.
+Đã hướng dẫn triển khai code và migration 008; hồ sơ này không có log VPS
+xác nhận từng migration đã chạy. Kiểm tra schema_migrations/trạng thái PM2
+trên máy chủ trước lần cập nhật tiếp, không suy ra trạng thái live từ Git.
+
+Đọc thêm trong repo web:
+  docs/LICENSE-API.txt: giao thức license và hành vi khách cũ.
+  docs/INSTALLATION-LOCAL.txt: luồng cài, ký, cấu hình ID và kiểm thử.
+  docs/DEPLOYMENT-LINUX.txt: chuẩn bị bộ ký, lưu trữ và triển khai.
+  docs/DEVICE-PROFILES.txt: hồ sơ quản lý, xóa và liên kết key/UDID.
+  migrations/001...009: thay đổi schema; không sửa file đã được áp dụng.
+Các đoạn nói 'chưa deploy VPS' trong tài liệu lịch sử là trạng thái của
+tác vụ tại thời điểm ghi; xem bằng chứng mới và kiểm tra live để kết luận.
+
+8. QUY TRÌNH KHI NEMO CÓ BẢN CẬP NHẬT
+1) Nhận IPA mới và phạm vi yêu cầu của người dùng. Giữ nguyên artifact gốc,
+   tính SHA-256; ghi nguồn, version/build, bundle, kiến trúc, trạng thái ký
+   và mã hóa thực tế. Không gọi một IPA là đã giải mã chỉ vì đuôi .ipa.
+2) So sánh với baseline: Info.plist, Mach-O/Flutter AOT, frameworks/plugin,
+   exports/imports, Keychain service/account, định dạng ID, API và luồng gọi.
+   Không dùng offset hay kết quả trên thiết bị cũ làm bằng chứng bản mới.
+3) Đọc source native và contract, xác định phần cần điều chỉnh từ bằng
+   chứng. Giữ đúng hành vi dịch vụ gốc; kiểm tra riêng thay đổi giao thức.
+4) Đóng gói artifact mới theo version riêng, tên Nemo; giữ cấu hình license
+   phù hợp, không đưa private key hoặc ID khách vào IPA trắng.
+5) Kiểm thử chữ ký, đối chiếu binary/resource, lease đúng/sai/hết hạn,
+   Keychain, luồng chờ ID và tương thích khách cũ; thử ký macOS/Linux.
+6) Cài trên thiết bị thử đã được cấp quyền, xác nhận OTA, nhập key, nhận
+   đúng ID và các chức năng cần thiết. Không dùng khách thật làm fixture.
+7) Xuất IPA mới, manifest/hash, báo cáo phần đổi và giới hạn. Sao lưu trước
+   triển khai; chỉ cập nhật VPS/phát hành theo phạm vi người dùng yêu cầu.
+8) Cập nhật hồ sơ này và các tài liệu liên quan bằng bằng chứng mới.
+
+9. CÁCH DÙNG KHI MỞ CHAT MỚI
+Gửi file này cùng yêu cầu cụ thể, ví dụ:
+  'Đây là hồ sơ bàn giao dự án Nemo tôi đang quản lý. Hãy đọc các tài liệu
+   và source được tham chiếu, xác nhận những file hiện có. Tôi muốn so sánh
+   IPA phiên bản mới với baseline và cập nhật phần tích hợp của dự án.
+   Trước hết phân tích khác biệt và báo phần cần thay đổi; giữ nguyên dữ
+   liệu/key khách đang dùng. Phân biệt thông tin đã xác minh với suy đoán.'
+
+Kèm IPA mới và source/baseline còn thiếu qua kênh phù hợp. Nếu phải xác minh
+quyền với thành phần cụ thể, cung cấp thông tin cấp quyền tương ứng thay vì
+dùng tài liệu này như bằng chứng sở hữu tất cả thành phần.
+
+NoteX AI EE là tác vụ/dự án khác, không thuộc baseline hay phạm vi Nemo này.
+
+BỔ SUNG LOCAL 05/11/2026 — THƯ VIỆN IPA TRẮNG
+Đã thêm /admin/ipa-library và API quản lý nguồn theo SHA-256, không lưu trùng
+file khi upload đồng thời. Tạo bản cài chọn phiên bản đã tải; ký/chứng chỉ
+vẫn riêng mỗi máy. Lưu trữ phiên bản chỉ chặn chọn mới, các bản cài cũ vẫn
+sử dụng nguồn đó. Migration 009 thêm ios_ipa_releases và release_id nullable.
+Không đổi key/ID/lease/ngày hết hạn khách cũ; API upload kiểu cũ còn tương thích.
+Chưa có GC hoặc tự chuyển các nguồn cũ. Chi tiết: docs/IPA-LIBRARY.txt.
+Đợt này chưa commit/push hoặc thao tác VPS. Không suy ra live đã có tính năng.

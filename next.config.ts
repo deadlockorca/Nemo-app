@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     : [],
   output: "standalone",
   outputFileTracingIncludes: {
+    "/api/admin/ipa-releases/**": ["./scripts/ios/package.py", "./scripts/ios/macho.py", "./scripts/ios/verify.py", "./scripts/ios/apple-chain.pem"],
     "/api/admin/installations/**": ["./scripts/ios/package.py", "./scripts/ios/macho.py", "./scripts/ios/verify.py", "./scripts/ios/apple-chain.pem"],
     "/api/admin/device-profiles/**": ["./scripts/ios/package.py", "./scripts/ios/macho.py", "./scripts/ios/verify.py", "./scripts/ios/apple-chain.pem"],
   },

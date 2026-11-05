@@ -1,14 +1,15 @@
-export type PackageMetadata = {
-  name: string; bundle: string; version: string; build: string; sourceSha256: string;
+import type { IpaMetadata } from "./ipa-release-types";
+export type PackageMetadata = IpaMetadata & {
   team: string; certificateSha256: string; certificateExpiresAt: string;
   profileName: string; profileExpiresAt: string; profileDeviceCount: number;
-  signingMode: "development" | "ad-hoc"; blankIdentity: boolean;
+  signingMode: "development" | "ad-hoc";
 };
 export type InstallationItem = {
   id: string; license_id: string; label: string; apple_udid: string; state: string;
   customer_name: string; key_hint: string; metadata: PackageMetadata;
   job_status: string | null; error_code: string | null; created_at: string;
   code_expires_at: string | null; code_expired: number;
+  release_id: string | null; release_label: string | null;
 };
 export type CustomerInstall = {
   label: string; deviceSuffix: string; version: string; status: string;
@@ -24,6 +25,7 @@ export const signingErrors: Record<string, string> = {
   certificate_profile_mismatch: "Chứng chỉ không khớp hồ sơ cấp phép.",
   invalid_profile_signature: "Chữ ký Apple của hồ sơ cấp phép không hợp lệ.",
   blank_ipa_required: "Cần chọn IPA trắng NemoBlankIdentity-1.",
+  source_changed: "IPA nguồn đã thay đổi so với phiên bản đã lưu. Hãy kiểm tra kho IPA trước khi tạo bản cài.",
   embedded_identity_found: "IPA còn chứa ID nhúng sẵn. Hãy chọn IPA trắng.",
   wrong_app: "IPA phải có tên Nemo và bundle vn.fractal.nemo-rebuild.",
   unsafe_ipa: "Nội dung ZIP của IPA không an toàn hoặc bị hỏng.",

@@ -1,4 +1,6 @@
 NEMO — IPA TRẮNG, CẤP HAI ID VÀ TRANG CÀI ĐẶT
+Cập nhật 05/11/2026: thư viện IPA dùng chung theo phiên bản (migration 009).
+Xem IPA-LIBRARY.txt cho giao diện và quy trình mới; phần dưới giữ lịch sử thử.
 Triển khai local trên nhánh feat/blank-identity-local, 2026-10-25/26.
 
 PHẠM VI
@@ -24,7 +26,8 @@ LUỒNG SỬ DỤNG
    nhận rõ; không tự đổi ngày hết hạn, key hash hoặc fingerprint thiết bị.
 2. Vào “Cài đặt Nemo”, chọn key đã gán hai ID, nhập tên bản cài và UDID Apple
    của iPhone/iPad. UDID Apple khác device_id của Nemo và fingerprint license.
-3. Chọn IPA trắng, chứng chỉ .p12, mật khẩu .p12 và .mobileprovision.
+3. Tải IPA trắng vào thư viện một lần, rồi chọn phiên bản trong bản cài.
+   Chọn chứng chỉ .p12, mật khẩu .p12 và .mobileprovision của khách.
    Server kiểm tra cấu trúc IPA trắng, chữ ký CMS/chuỗi Apple của profile,
    quyền ký của certificate, hạn sử dụng và UDID nằm trong profile.
 4. Mã cài ngẫu nhiên dạng UUID chỉ hiện một lần. Admin gửi mã này và địa chỉ
@@ -101,7 +104,7 @@ BẢO VỆ VÀ GIỚI HẠN
 - Giới hạn upload: IPA nén 150 MB, .p12 1 MB, profile 2 MB; tổng body 154 MB;
   kiểm tra đường dẫn ZIP/symlink/trùng entry/CRC, tối đa giải nén 768 MB.
 - Danh sách admin hiện 100 bản gần nhất; bộ chọn hiện 200 key đã gán ID gần
-  nhất. Phiên local chưa có thư viện IPA dùng chung hoặc dọn artifact tự động.
+  nhất. Có thư viện IPA dùng chung theo phiên bản; chưa dọn artifact tự động.
   Tệp nguồn và gói ký được giữ để tái tải; theo dõi dung lượng và dọn có kiểm soát.
 
 CHẠY LẠI LOCAL ĐÃ CẤU HÌNH

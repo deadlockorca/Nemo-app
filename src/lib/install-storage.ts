@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile, unlink, chmod } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import type { PackageMetadata } from "./installation-types";
+import type { IpaMetadata } from "./ipa-release-types";
 
 export function storageRoot() {
   const configured = process.env.INSTALL_STORAGE_DIR;
@@ -54,9 +55,15 @@ export async function removeObject(key: string, kind: "ipa" | "secret") {
 }
 export type SigningSecrets = { p12: string; profile: string; password: string };
 export class SigningError extends Error { constructor(public code: string) { super("Signing operation failed"); } }
-export async function runPackager(input: SigningSecrets & {
+export function runPackager(input: SigningSecrets & {
   mode: "inspect" | "sign"; source: string; udid: string; output?: string; expectedSourceSha256?: string;
 }): Promise<PackageMetadata & { outputSha256?: string; verified?: boolean }> {
+  return runPackageHelper(input);
+}
+export function inspectIpaSource(source: string): Promise<IpaMetadata> {
+  return runPackageHelper({ mode: "inspect-source", source });
+}
+async function runPackageHelper<T extends IpaMetadata>(input: { mode: string; [key: string]: unknown }): Promise<T> {
   await prepareStorage();
   if (input.mode === "sign" && !["darwin", "linux"].includes(process.platform)) throw new SigningError("unsupported_signer");
   return new Promise((resolve, reject) => {
@@ -75,6 +82,7 @@ export async function runPackager(input: SigningSecrets & {
         const result = JSON.parse(output);
         if (code !== 0 || result.error) throw new SigningError(/^[a-z_]{1,60}$/.test(result.error) ? result.error : "invalid_signing_assets");
         if (!result.blankIdentity || result.name !== "Nemo" || result.bundle !== "vn.fractal.nemo-rebuild") throw new SigningError("wrong_app");
+        if (!/^[a-f0-9]{64}$/.test(result.sourceSha256) || typeof result.version !== "string" || typeof result.build !== "string" || !result.version.length || !result.build.length || result.version.length > 80 || result.build.length > 80) throw new SigningError("invalid_ipa");
         resolve(result);
       } catch (e) { reject(e instanceof SigningError ? e : new SigningError("invalid_signing_assets")); }
     });

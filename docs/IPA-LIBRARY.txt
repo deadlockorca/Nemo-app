@@ -1,0 +1,71 @@
+NEMO — THƯ VIỆN IPA TRẮNG THEO PHIÊN BẢN
+05/11/2026. Chỉ triển khai/kiểm thử local; chưa commit, push hoặc cập nhật VPS.
+
+CÁCH DÙNG
+1. Vào admin → IPA trắng (/admin/ipa-library) → Thêm phiên bản.
+2. Đặt tên dễ nhớ, ví dụ Nemo 6.11.23 — bản trắng v1, chọn IPA và thêm ghi chú.
+   Server đọc version/build, kiểm tra cấu trúc/marker IPA trắng và lưu SHA-256.
+   Không cần tải chứng chỉ ở đây. File có cùng SHA-256 sẽ dùng lại bản đã lưu,
+   kể cả khi đổi tên; upload đồng thời cùng file cũng chỉ giữ một bản nguồn.
+3. Vào Cài đặt Nemo → Tạo bản cài → chọn phiên bản từ thư viện, key của khách
+   và bộ chứng chỉ .p12/password/.mobileprovision đúng UDID như trước.
+   Không cần upload lại IPA mỗi khách. Chứng chỉ vẫn được kiểm tra riêng.
+4. Gửi /install và mã cài 15 phút cho khách. Worker ký bản riêng cho máy;
+   khách cài app tên Nemo rồi nhập key mới nhận cặp ID từ server.
+5. Khi có IPA mới, thêm một phiên bản khác. File nguồn của một phiên bản
+   không bị ghi đè và các bản cài đã tạo không tự chuyển sang phiên bản mới.
+6. Lưu trữ phiên bản để ngừng chọn cho bản cài mới; Khôi phục để chọn lại.
+   Lưu trữ không thu hồi mã cài, key hoặc app và không xóa file. Bản cài đã
+   tạo vẫn ký/tải được trong phạm vi thời hạn mã/key/chứng chỉ hiện hành.
+
+LƯU TRỮ
+Mỗi nội dung IPA trắng: một bản trong INSTALL_STORAGE_DIR, tên ngẫu nhiên,
+quyền tệp 0600/thư mục 0700, không có endpoint public tải IPA nguồn.
+CSDL ios_ipa_releases giữ nhãn/ghi chú, hash, dung lượng, metadata và trạng thái.
+Mỗi ios_installations mới tham chiếu release_id và cùng source_key; .p12,
+password, profile được mã hóa riêng như trước. IPA sau ký vẫn riêng mỗi bản cài.
+Dung lượng vẫn tăng theo số IPA đã ký và các bộ chứng chỉ lưu. Đợt này chưa
+làm dọn file tự động hoặc xóa vĩnh viễn phiên bản; cần theo dõi dung lượng.
+Không chỉ xóa file theo một bản cài: nguồn thư viện có thể được nhiều bản dùng.
+Sao lưu DB, kho file và INSTALL_STORAGE_KEY cùng nhau; không đổi khóa tùy tiện.
+
+TƯƠNG THÍCH VÀ MIGRATION
+Áp dụng migration 009-ipa-library.sql trước khi chạy code mới. Migration thêm
+bảng và release_id nullable, không đổi các bản cài/key/ID/ngày hết hạn hiện có.
+Bản cài trước đây có release_id NULL, vẫn dùng tệp nguồn và IPA đã ký cũ.
+Không tự nhập, gộp hoặc xóa những tệp nguồn cũ. Bảng admin ghi rõ bản tải riêng
+trước đây. API vẫn nhận trường ipa kiểu cũ để tương thích; giao diện mới dùng
+releaseId, không gửi IPA khi tạo bản cài. Gửi cả hai bị từ chối.
+Mỗi lượt tạo kiểm tra lại phiên bản còn active khi ghi transaction; lỗi tạo
+bản cài không xóa nguồn chung. Worker tiếp tục đối chiếu hash lúc ký.
+Không đổi /api/v1/challenge, activate, verify, hợp đồng JWT, lease hoặc cơ chế
+IPA cũ nhúng hai ID. Khách đang dùng không phải cài lại vì cập nhật thư viện.
+
+ĐƯA LÊN VPS (CHƯA THỰC HIỆN)
+Sau khi duyệt code/đưa lên main: sao lưu, kéo code, giữ .env/DB/kho/khóa hiện có,
+chạy npm ci → npm run db:migrate → npm run build rồi khởi động lại nemo-app và
+nemo-signing-worker theo cấu hình triển khai hiện hành. Không import DB local.
+Thư viện trên VPS ban đầu trống: admin tải IPA trắng hiện có lên một lần;
+những bản cài trước đây vẫn dùng bình thường. Không phải tạo lại khách/key cũ.
+Các yêu cầu Python, bộ ký Linux, HTTPS và giới hạn upload giữ như tài liệu
+DEPLOYMENT-LINUX.txt. Không công khai kho chứng chỉ hoặc file nguồn.
+
+KIỂM CHỨNG LOCAL
+Các bài thử ở tests/ipa-library.test.ts dùng DB nemo_blank_test và bộ chứng chỉ
+thử thật: auth/CSRF, từ chối IPA lỗi, upload đồng thời chống trùng, nhiều phiên
+bản, hai bản cài chung nguồn, lỗi chứng chỉ không xóa nguồn, archive/restore,
+khóa optimistic version, ký thật và tải sau khi lưu trữ nguồn. Suite cũ vẫn
+kiểm tra API nhận IPA tải riêng, key cũ và giới hạn mã cài 15 phút.
+scripts/ios/test_source.py kiểm tra metadata/hash, ID nhúng, app/marker sai,
+ZIP không an toàn và version không hợp lệ. Đây không phải bằng chứng cài OTA
+trên iPad thật hay đã triển khai VPS trong đợt này.
+
+Kết quả: full suite web/API 91/91 đạt, không skip; sau khi thêm tình huống
+sửa byte nguồn, suite thư viện riêng 11/11 đạt. Python 21/21, lint, typecheck
+và production build đạt. Postbuild xác nhận không đóng gói bí mật. Checksum
+trạng thái/version/ngày kích hoạt/ngày hết hạn các license local có sẵn
+không đổi sau migration và các bài thử.
+Đã kiểm tra giao diện Chrome và tải chính Nemo-Blank-v1.ipa vào thư viện local
+(digest 36fe99dfbfd454d0bf684db7bc8365f69237a130bb7519b5a90f0a0394bc6768),
+đọc đúng Nemo 6.11.23 (322), hiện trong bộ chọn bản cài. Preview local hiện tại:
+http://localhost:3117/admin/ipa-library (chỉ trên Mac, DB thử riêng).

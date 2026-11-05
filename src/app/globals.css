@@ -247,3 +247,9 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .install-list .section-heading { margin-bottom:20px; }
 .install-list .danger-button { color:white; }
 .install-create .management-form > label { display:grid; gap:8px; }
+
+/* Shared blank IPA library. */
+.ipa-library-filter { align-items:flex-end; }
+.ipa-library-filter label { display:grid; gap:8px; font-size:12px; font-weight:600; }
+.ipa-library-filter label:first-child { flex:1; min-width:180px; }
+.ipa-library-filter input, .ipa-library-filter select { border:1px solid #dce3da; border-radius:8px; padding:12px 13px; background:white; color:var(--ink); font:inherit; font-size:13px; min-width:0; width:100%; }
