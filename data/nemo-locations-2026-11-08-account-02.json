@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-11-08T04:04:02.750605+07:00",
+  "source": "Connected iPhone 7, Nemo 6.11.31 (335), nemo.db/db_hospitals",
+  "snapshot_label": "account-02",
+  "location_count": 15,
+  "notes": [
+    "Danh sách cache sau khi người dùng thông báo đăng nhập tài khoản khác ngày 08/11/2026; account-02 chỉ là nhãn phân biệt của phiên làm việc, không phải ID tài khoản Nemo.",
+    "Không tự chứng minh quyền chấm công hiện tại.",
+    "lat là vĩ độ, long là kinh độ. Giữ nguyên chuỗi tọa độ từ nguồn, không làm tròn; chuyển sang số khi dùng với thư viện bản đồ.",
+    "code được tách từ tiền tố tên điểm trong nguồn; không phải trường id nội bộ của database.",
+    "Giữ nguyên các cờ và ngưỡng khoảng cách từ nguồn. Chưa thử chấm công từng điểm.",
+    "Không bao gồm 7 điểm thiếu tọa độ. Các điểm khác code được giữ riêng kể cả khi chung tọa độ."
+  ],
+  "locations": [
+    {
+      "code": "100090835",
+      "name": "TRUNG TAM TIEM CHUNG VAC XIN VIET Y",
+      "lat": "20.72495",
+      "long": "105.7728017",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "100093135",
+      "name": "CONG TY CO PHAN DICH VU THUONG MAI SONG DUONG",
+      "lat": "20.725489619222675",
+      "long": "105.77396984373588",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "100096263",
+      "name": "NGUYEN BANG VIET",
+      "lat": "21.00094081577714",
+      "long": "105.85915698508128",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "3A-HANO",
+      "name": "Van Phong 3A Ha Noi",
+      "lat": "21.0313893",
+      "long": "105.7826891",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "752004428",
+      "name": "THIET BI Y TE THANH NHAN",
+      "lat": "21.003094",
+      "long": "105.859855",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "752004472",
+      "name": "NGUYEN TIEN DUNG",
+      "lat": "20.989899",
+      "long": "105.839063",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC0955",
+      "name": "Benh Vien Da Khoa Van Dinh",
+      "lat": "20.725758535662322",
+      "long": "105.77323700360975",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC0974",
+      "name": "Benh Vien 19-8",
+      "lat": "21.0337507",
+      "long": "105.7788244",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC0975",
+      "name": "Benh Vien Da Khoa Y Hoc Co Truyen Ha Noi",
+      "lat": "21.0343108",
+      "long": "105.7801496",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC1020",
+      "name": "Benh Vien Thanh Nhan",
+      "lat": "21.003412",
+      "long": "105.859587",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC1075",
+      "name": "Benh Vien Y Hoc Co Truyen Quan Doi",
+      "lat": "20.972885820352836",
+      "long": "105.82431663179152",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC1106",
+      "name": "Phong Kham Nhi Khoa - Bac Si Nguyen Tien Dung",
+      "lat": "20.989899",
+      "long": "105.839063",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC3282",
+      "name": "Bệnh viện Đại học Y Dược - Cơ sở Linh Đàm",
+      "lat": "20.960307395780163",
+      "long": "105.82755820003462",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "KHO-HANO",
+      "name": "Kho Ha Noi",
+      "lat": "21.048694000000001",
+      "long": "105.74212799999999",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "RO-HANO",
+      "name": "Van Phong RO Ha Noi",
+      "lat": "21.0293447",
+      "long": "105.8115129",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    }
+  ]
+}

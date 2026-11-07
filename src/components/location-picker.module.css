@@ -1,0 +1,75 @@
+.shell { min-height: 100dvh; background: #f7f8f3; color: var(--ink); padding: 0 max(24px, calc((100vw - 1160px) / 2)); }
+.header { min-height: 94px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #dfe5d9; }
+.installLink { padding: 10px 0; font-size: 13px; color: #476252; }
+.installLink span { margin-left: 8px; }
+.intro { padding: 42px 0 30px; }
+.intro > span { color: #617852; }
+.intro h1 { font-size: clamp(29px, 3vw, 40px); font-weight: 500; line-height: 1.25; letter-spacing: -1.2px; margin: 16px 0; }
+.intro h1 span { color: #66806b; }
+.intro p { color: var(--muted); font-size: 14px; line-height: 1.7; max-width: 590px; }
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 24px; align-items: start; }
+.catalog, .generator { background: white; border: 1px solid #dfe5d9; border-radius: 18px; overflow: hidden; }
+.catalogHead { padding: 24px 24px 0; }
+.sectionTitle { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.sectionTitle h2 { font-size: 18px; font-weight: 600; margin: 0; }
+.sectionTitle > span { padding: 6px 10px; background: #edf3e7; border-radius: 30px; color: #527046; font-size: 11px; white-space: nowrap; }
+.searchLabel { display: block; margin: 23px 0 9px; color: #637362; font-size: 12px; }
+.search { width: 100%; min-width: 0; border: 1px solid #dbe2d5; border-radius: 9px; background: #fcfdf9; padding: 13px; font-size: 14px; color: var(--ink); }
+.searchCount { font-size: 11px; color: #71806c; margin: 12px 0 14px; }
+.list { max-height: 530px; overflow-y: auto; padding: 0 12px 12px; scrollbar-color: #c9d5bf transparent; scrollbar-width: thin; }
+.location { display: flex; align-items: center; width: 100%; gap: 13px; padding: 16px 13px; border: 1px solid transparent; border-bottom-color: #eff2ea; background: white; text-align: left; color: var(--ink); border-radius: 9px; }
+.location:hover { background: #f7f9f2; }
+.location:focus-visible { outline-offset: -3px; }
+.location strong { display: block; font-size: 12px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.location small { display: block; margin-top: 4px; font-size: 10px; color: #778574; }
+.locationMark { display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0; border: 1px solid #d8e2d2; border-radius: 50%; font-size: 16px; color: #84977e; }
+.location.selected { background: #edf4e6; border-color: #c5d6b7; }
+.selected .locationMark { background: #23564b; border-color: #23564b; color: white; font-size: 13px; }
+.noResults { padding: 42px 20px; text-align: center; font-size: 13px; color: var(--muted); }
+.noResults strong { color: var(--ink); }
+.noResults button { border: 0; background: transparent; color: #23564b; text-decoration: underline; padding: 10px; }
+.generator { padding: 30px; }
+.selectedHeader > span { color: #74856c; font-size: 10px; }
+.selectedHeader h2 { margin: 12px 0; font-size: 22px; font-weight: 600; line-height: 1.4; letter-spacing: -.5px; }
+.origin, .placeholder { font-size: 12px; line-height: 1.8; color: var(--muted); margin: 0; }
+.origin span { display: block; font-family: ui-monospace, monospace; color: #456250; font-size: 12px; overflow-wrap: anywhere; }
+.preview { display: flex; align-items: center; gap: 12px; margin: 10px 0 18px; }
+.diagram { width: 50%; max-width: 240px; flex-shrink: 0; }
+.distance { flex: 1; min-width: 0; }
+.distance > span { font-size: 9px; line-height: 1.8; letter-spacing: .08em; color: #73806d; display: block; }
+.distance strong { display: block; margin-top: 8px; font-size: clamp(32px, 4vw, 48px); font-weight: 500; letter-spacing: -1.6px; font-variant-numeric: tabular-nums; }
+.distance small { font-size: 18px; letter-spacing: 0; color: #7b8e74; margin-left: 6px; }
+.distance p { font-size: 11px; line-height: 1.6; color: #617852; }
+.generate { width: 100%; align-items: center; padding: 16px 18px; }
+.generate > span { font-size: 22px; line-height: 1; }
+.announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.result { margin-top: 24px; padding-top: 22px; border-top: 1px solid #e6ebdf; }
+.result label { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+.result label span { color: #83907d; font-size: 11px; font-weight: 400; }
+.result input { width: 100%; min-width: 0; padding: 16px 12px; border: 1px solid #d6e3cb; border-radius: 9px; color: #204739; background: #f4f8ef; font: 14px ui-monospace, monospace; font-variant-numeric: tabular-nums; text-align: center; }
+.copyMain { margin-top: 12px; padding: 13px 15px; display: flex; width: 100%; justify-content: space-between; background: white; border: 1px solid #c8d7bc; border-radius: 8px; color: #285b4d; font-size: 13px; font-weight: 600; }
+.copyMain:hover { background: #f3f7ee; }
+.copyParts { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+.copyParts button { border: 0; background: transparent; color: #5e7554; font-size: 11px; padding: 10px 4px; text-decoration: underline; text-underline-offset: 3px; }
+.feedback { font-size: 12px; color: #456a3c; line-height: 1.7; margin: 5px 0 0; }
+.feedback:empty { display: none; }
+.emptyResult { text-align: center; font-size: 12px; color: #899581; margin: 22px 0 4px; line-height: 1.8; }
+.footer { padding: 30px 0; color: #7e8b77; font-size: 11px; text-align: center; line-height: 1.7; }
+@media (max-width: 760px) {
+  .shell { padding: 0 18px; }
+  .header { min-height: 78px; }
+  .intro { padding: 28px 0 20px; }
+  .intro h1 { font-size: 29px; }
+  .intro p { font-size: 13px; }
+  .workspace { grid-template-columns: 1fr; gap: 18px; }
+  .catalogHead { padding: 20px 20px 0; }
+  .list { max-height: 240px; }
+  .generator { padding: 23px 20px; }
+  .selectedHeader h2 { font-size: 20px; }
+  .diagram { max-width: 200px; }
+  .distance strong { font-size: 38px; }
+  .installLink { font-size: 12px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .location, .copyMain { transition: background-color .15s; }
+}

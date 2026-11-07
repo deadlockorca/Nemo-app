@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-11-08T03:46:54.358438+07:00",
+  "source": "Connected iPhone 7, Nemo 6.11.31 (335), nemo.db/db_hospitals",
+  "location_count": 20,
+  "notes": [
+    "Danh sách địa điểm đã đồng bộ trong cache Nemo ngày 08/11/2026; không tự chứng minh quyền chấm công hiện tại.",
+    "lat là vĩ độ, long là kinh độ. Giữ nguyên chuỗi tọa độ từ nguồn, không làm tròn; chuyển sang số khi dùng với thư viện bản đồ.",
+    "code được tách từ tiền tố tên điểm trong nguồn; không phải trường id nội bộ của database.",
+    "Giữ nguyên các cờ và ngưỡng khoảng cách từ nguồn. Chưa thử chấm công từng điểm.",
+    "Không bao gồm 5 điểm thiếu tọa độ. Các điểm trùng tên nhưng khác code được giữ riêng."
+  ],
+  "locations": [
+    {
+      "code": "100063185",
+      "name": "PHONG KHAM SON HUONG",
+      "lat": "21.153815",
+      "long": "106.148111",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "100064757",
+      "name": "CANG TIN TTYT THI XA TU SON",
+      "lat": "21.124329930198083",
+      "long": "105.97180011348595",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "100065099",
+      "name": "NHA THUOC VIET HOA",
+      "lat": "21.16745546559983",
+      "long": "106.06539740366814",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "100075991",
+      "name": "NHA THUOC HUNG THANH",
+      "lat": "21.279598360668256",
+      "long": "106.21374636402003",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "100084277",
+      "name": "PHONG KHAM NHI BAC SI THANG",
+      "lat": "21.16299470337003",
+      "long": "106.05484667721173",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "100085936",
+      "name": "QUAY TIEN ICH BENH VIEN SAN NHI BAC GIANG",
+      "lat": "21.28083728313275",
+      "long": "106.2129513417067",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "100091944",
+      "name": "CANG TIN BENH VIEN SAN NHI BAC NINH",
+      "lat": "21.16996628926499",
+      "long": "106.06790629567796",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "100091956",
+      "name": "TAP HOA CHIEN THUY",
+      "lat": "21.279551264017375",
+      "long": "106.21370091637925",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "100093152",
+      "name": "TAP HOA HUYEN MINH",
+      "lat": "21.168453942695166",
+      "long": "106.06792054886454",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "100099382",
+      "name": "PHONG KHAM CHUYEN KHOA NHI THANH CONG",
+      "lat": "21.11927776729868",
+      "long": "105.96688920325124",
+      "is_hospital": "N",
+      "is_pos": "Y",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "3A-HCMC",
+      "name": "Van Phong 3A Ho Chi Minh",
+      "lat": "10.7637881",
+      "long": "106.6563052",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC0289",
+      "name": "Benh Vien Da Khoa Tinh Bac Giang",
+      "lat": "21.2741791",
+      "long": "106.1980143",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC0290",
+      "name": "Bệnh Viện Sản Nhi Bắc Ninh Số 1",
+      "lat": "21.279198",
+      "long": "106.213375",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC0301",
+      "name": "Trung Tam Y Te Thi Xa Tu Son",
+      "lat": "21.124141925351456",
+      "long": "105.97174223453587",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC1533",
+      "name": "Bệnh Viện Sản - Nhi Bắc Ninh Số 2",
+      "lat": "21.168533",
+      "long": "106.068098",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC2794",
+      "name": "Phong Kham Nhi Son Huong",
+      "lat": "21.153895815839252",
+      "long": "106.14808911125475",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC3110",
+      "name": "Phòng Khám Nhi Bác Sĩ Thắng",
+      "lat": "21.163083601956146",
+      "long": "106.05483340045578",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC3240",
+      "name": "Phòng Khám Chuyên Khoa Nhi Thành Công",
+      "lat": "21.119272105309225",
+      "long": "105.9668829246366",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC3272",
+      "name": "Bệnh viện đa khoa Kinh Bắc 2",
+      "lat": "21.163879204561155",
+      "long": "106.07596607888684",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "RO-HCMC",
+      "name": "Van Phong RO Ho Chi Minh",
+      "lat": "10.773930473328281",
+      "long": "106.70575665220804",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    }
+  ]
+}

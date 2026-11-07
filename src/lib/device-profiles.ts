@@ -1,14 +1,21 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getDb } from "./db";
 import type { Admin } from "./auth";
+import { monitorSummary } from "./certificate-monitor";
 import { InputError, id } from "./validation";
 import type { PackageMetadata } from "./installation-types";
 
 const fields = `p.*, c.name AS customer_name, l.key_hint, l.expires_at AS key_expires_at,
   CASE WHEN l.status = 'active' AND l.expires_at <= UTC_TIMESTAMP(3) THEN 'expired' ELSE l.status END AS key_status,
-  d.fingerprint, d.last_seen_at`;
+  d.fingerprint, d.last_seen_at, COALESCE(a.metadata, i.metadata) AS monitor_metadata, a.device_profile_id AS monitor_assets_id,
+  s.status AS certificate_status, s.detail_code AS certificate_detail, s.checked_at AS certificate_checked_at,
+  s.last_confirmed_status AS certificate_last_confirmed_status, s.last_confirmed_at AS certificate_last_confirmed_at,
+  s.response_valid_until AS certificate_valid_until, s.next_check_at AS certificate_next_check_at`;
 const joins = `customer_device_profiles p JOIN customers c ON c.id = p.customer_id
-  LEFT JOIN licenses l ON l.id = p.license_id LEFT JOIN devices d ON d.license_id = l.id`;
+  LEFT JOIN licenses l ON l.id = p.license_id LEFT JOIN devices d ON d.license_id = l.id
+  LEFT JOIN ios_installations i ON i.id = p.installation_id
+  LEFT JOIN ios_device_certificate_assets a ON a.device_profile_id = p.id AND a.bound_installation_id <=> p.installation_id
+  LEFT JOIN ios_certificate_checks s ON s.certificate_sha256 = COALESCE(a.certificate_sha256, CONVERT(JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.certificateSha256')) USING ascii) COLLATE ascii_bin)`;
 
 export async function listDeviceProfiles(params: URLSearchParams) {
   const q = (params.get("q") || "").trim().slice(0, 120);
@@ -26,7 +33,20 @@ export async function listDeviceProfiles(params: URLSearchParams) {
   const total = Number(count[0].n), pages = Math.max(1, Math.ceil(total / 25));
   const page = Math.min(pages, Math.max(1, Number.parseInt(params.get("page") || "1", 10) || 1));
   const [items] = await db.execute<RowDataPacket[]>(`SELECT ${fields} FROM ${joins} WHERE ${where} ORDER BY p.id DESC LIMIT 25 OFFSET ${(page - 1) * 25}`, values);
-  return { items, total, page, pages };
+  const now = Date.now();
+  return { items: items.map((row): RowDataPacket => {
+    const metadata = row.monitor_metadata;
+    const certExpiry = metadata?.certificateExpiresAt || row.certificate_expires_at;
+    const profileExpiry = metadata?.profileExpiresAt || row.profile_expires_at;
+    const expired = [certExpiry, profileExpiry].some(d => d && new Date(d).getTime() <= now);
+    let status = row.certificate_status || "unknown", detail = row.certificate_detail || ((row.installation_id || row.monitor_assets_id) ? "not_checked" : "no_assets");
+    if (expired) { status = "expired"; detail = certExpiry && new Date(certExpiry).getTime() <= now ? "certificate_expired" : "profile_expired"; }
+    else if ((row.certificate_checked_at && now - new Date(row.certificate_checked_at).getTime() > 2 * 3600000) ||
+      (status === "good" && (!row.certificate_valid_until || new Date(row.certificate_valid_until).getTime() <= now))) { status = "unknown"; detail = "stale"; }
+    const { monitor_metadata: _privateMetadata, monitor_assets_id: _privateAssetId, ...item } = row;
+    void _privateMetadata; void _privateAssetId;
+    return { ...item, certificate_expires_at: certExpiry || null, profile_expires_at: profileExpiry || null, certificate_monitor_attached: !!_privateAssetId, certificate_status: status, certificate_detail: detail };
+  }), total, page, pages, monitor: await monitorSummary() };
 }
 
 function text(value: unknown, max: number, required = false) {
@@ -67,6 +87,10 @@ export async function saveDeviceProfile(admin: Admin, data: Record<string, unkno
       if (!before) throw new InputError("Không tìm thấy hồ sơ thiết bị.", 404);
       if (before.version !== data.version) throw new InputError("Hồ sơ đã thay đổi. Hãy tải lại trước khi sửa.", 409);
       if (String(before.customer_id) !== input.customerId) throw new InputError("Không chuyển hồ sơ sang khách khác. Hãy tạo hồ sơ đúng khách.", 409);
+      if (before.apple_udid !== input.udid) {
+        const [assets] = await db.execute<RowDataPacket[]>(`SELECT device_profile_id FROM ios_device_certificate_assets WHERE device_profile_id = ?`, [profileId]);
+        if (assets.length) throw new InputError("Hồ sơ đã gắn profile theo dõi. Giữ nguyên UDID; tạo hồ sơ mới khi đổi máy.", 409);
+      }
       if (before.installation_id && (before.apple_udid !== input.udid || String(before.license_id) !== input.licenseId)) throw new InputError("Hồ sơ đã gắn bản cài. Giữ nguyên UDID và key; tạo hồ sơ mới khi đổi máy.", 409);
     }
     const values = [input.label, input.model || null, input.udid, input.signingLabel || null,

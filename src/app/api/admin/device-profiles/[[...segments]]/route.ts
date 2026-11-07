@@ -1,3 +1,4 @@
+import { attachMonitorProfile } from "@/lib/certificate-assets";
 import { currentAdmin } from "@/lib/auth";
 import { sameOrigin } from "@/lib/http";
 import { deleteDeviceProfile, listDeviceProfiles, saveDeviceProfile } from "@/lib/device-profiles";
@@ -16,6 +17,15 @@ async function handle(request: Request, context: Context) {
     if (request.method !== "GET" && !sameOrigin(request)) return installJson({ error: "Yêu cầu không hợp lệ." }, 403);
     const parts = (await context.params).segments || [];
     if (request.method === "GET" && !parts.length) return installJson(await listDeviceProfiles(new URL(request.url).searchParams));
+    if (request.method === "POST" && parts.length === 2 && ["certificate", "certificate-inspect"].includes(parts[1])) {
+      const type = request.headers.get("content-type") || "";
+      if (!type.startsWith("multipart/form-data;")) throw new InputError("Chọn tệp .mobileprovision.", 415);
+      const bytes = await limitedBody(request, 2 * 1024 * 1024 + 16384);
+      let form: FormData;
+      try { form = await new Response(bytes, { headers: { "Content-Type": type } }).formData(); }
+      catch { throw new InputError("Không đọc được dữ liệu tải lên."); }
+      return installJson(await attachMonitorProfile(admin, parts[0], form, parts[1] === "certificate-inspect"));
+    }
     if (request.method === "POST" && parts.length === 1 && parts[0] === "inspect") {
       const type = request.headers.get("content-type") || "";
       if (!type.startsWith("multipart/form-data;")) throw new InputError("Chọn tệp .mobileprovision.", 415);

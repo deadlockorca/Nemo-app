@@ -1,0 +1,129 @@
+NEMO — THEO DÕI CHỨNG CHỈ APPLE MỖI GIỜ VÀ CẢNH BÁO EMAIL
+05/11/2026. Triển khai và kiểm thử local; chưa commit/push/deploy VPS.
+
+PHẠM VI
+- Theo dõi mỗi certificate SHA-256, kể cả nhiều máy cùng dùng một chứng chỉ.
+- Một lần kiểm tra online mỗi 3.600 giây kể từ lần kiểm tra hoàn tất. Lịch nằm
+  trong DB, khởi động lại worker không khiến một bộ ký bị hỏi lại liên tục.
+- Kiểm tra Apple OCSP; dùng CRL nếu certificate có CRL Distribution Points
+  được hỗ trợ. Không cần Apple Account hoặc private key của nhà cung cấp.
+- good chỉ có nghĩa chưa thấy thu hồi trong bằng chứng đã xác minh; không
+  chứng minh mọi điều kiện cài/chạy app đều hợp lệ. Không phát hiện trước khi
+  Apple công bố trạng thái. Phản hồi cache có thể làm phát hiện chậm hơn 1 giờ.
+- revoked, expired và unknown khác nhau. Mạng lỗi, endpoint không được hỗ trợ,
+  phản hồi sai chữ ký, cũ hoặc không khớp certificate đều thành unknown.
+- Theo dõi cả hạn chứng chỉ và profile; nhắc theo mốc gần nhất trong 7/3/1
+  ngày và khi hết hạn. Ngày từ bộ ký đã xác minh ưu tiên hơn ngày nhập tay.
+- Không đổi key, hai ID, fingerprint, lease hoặc ngày hết hạn license. Không
+  tự thay bộ ký, ký lại IPA, thu hồi quyền tải hoặc xóa app trên iPad.
+
+DỮ LIỆU VÀ KHÁCH CŨ
+Bản cài tạo qua web có profile trong kho mã hóa và metadata chứng chỉ; worker
+lấy nguồn này từ bản cài đang liên kết hồ sơ thiết bị. Thu hồi mã tải OTA không
+làm ngừng theo dõi: app trước đó vẫn có thể đang dùng trên máy khách.
+Với khách cài USB/IPA cũ hoặc hồ sơ chưa gắn bản cài:
+  Thiết bị → Theo dõi chứng chỉ → tải .mobileprovision đúng UDID → gắn profile.
+Không cần P12/password, không bắt key cũ nhận hai ID từ server. Nếu profile có
+nhiều certificate, admin chọn đúng SHA-256 đã dùng ký app. Nếu thiếu profile,
+chỉ biết ngày nhập tay, không thể kết luận trạng thái thu hồi online.
+Gắn profile theo dõi không thay chứng chỉ của app đã cài. Profile của bộ ký mới
+chỉ phản ánh app sau khi đã thực sự được ký/cài bằng bộ đó; không gắn nhầm bộ
+chưa dùng rồi coi app cũ đã được sửa. Khi tạo một bản cài mới, nguồn của bản
+cài mới ưu tiên hơn profile theo dõi gắn với bản cài trước đó.
+
+EMAIL
+Mỗi sự cố thu hồi được ghi thành hàng đợi bền vững, gửi một lần cho mỗi lần
+chuyển từ trạng thái đã xác nhận khác sang revoked. Chứng chỉ chung gửi một
+email liệt kê các hồ sơ liên quan tại lúc gửi. Không tự gửi lại mỗi giờ.
+Nhắc hạn cũng chống trùng theo hồ sơ, bộ ký/ngày hết hạn và mốc nhắc. Nhắc chưa
+gửi được hủy nếu đã đổi bộ ký/ngày hạn hoặc đã qua mốc đó.
+Không có SMTP: giữ cảnh báo pending và hiển thị chưa cấu hình. Lỗi SMTP: thử
+lại sau 15 phút, tăng dần tối đa 6 giờ. Admin thấy số chờ và có lỗi gửi hay không.
+Một SMTP server nhận thư rồi worker mất điện trước khi ghi sent có thể dẫn
+đến gửi lại; Message-ID ổn định hỗ trợ nhận diện trùng nhưng không cam kết
+exactly-once. Cần kiểm tra Spam và email thực tế sau khi cấu hình.
+Nội dung gồm tên khách, tên máy, nhãn bộ ký và 8 ký tự cuối UDID. Không gửi P12,
+password, private key, key kích hoạt hoặc hai ID Nemo. SMTP chỉ TLS 465 hoặc
+bắt buộc STARTTLS 587, kiểm tra certificate TLS; không bật debug SMTP.
+
+CẤU HÌNH GMAIL (TRÊN VPS, GIỮ NGUYÊN CẤU HÌNH DB/KHÓA/KHO HIỆN HÀNH)
+Thêm vào .env của ứng dụng trên VPS:
+  CERTIFICATE_MONITOR_ENABLED=true
+  CERTIFICATE_ALERT_TO=<email nhận cảnh báo>
+  SMTP_HOST=smtp.gmail.com
+  SMTP_PORT=465
+  SMTP_USER=<Gmail gửi>
+  SMTP_FROM=<Gmail gửi>
+  SMTP_PASSWORD=<mật khẩu ứng dụng Gmail>
+Trong phiên này người dùng chọn cùng Gmail gửi/nhận; địa chỉ đã đặt ở .env
+local, không đưa địa chỉ hoặc password riêng vào mã nguồn hay .env.example.
+Google yêu cầu bật xác minh 2 bước để tạo mật khẩu ứng dụng. Tự tạo tại
+https://myaccount.google.com/apppasswords rồi điền riêng SMTP_PASSWORD;
+không dùng mật khẩu Gmail chính, không gửi mật khẩu vào chat hoặc log.
+Một số chính sách tài khoản không cho dùng app password; khi đó dùng SMTP
+khác hoặc triển khai OAuth riêng. Không tắt bảo vệ tài khoản để ép đăng nhập.
+  npm run certificate:mail-verify
+Lệnh chỉ kiểm tra kết nối TLS/đăng nhập SMTP, không gửi thư. Phải xác nhận thêm
+một email cảnh báo thử tới đúng địa chỉ trước khi coi mail đã hoạt động thật.
+
+TRIỂN KHAI VPS SAU KHI DUYỆT/PUSH CODE
+1. Sao lưu DB/cấu hình/kho và giữ nguyên các khóa đang dùng.
+2. Kéo main, npm ci, npm run db:migrate. Đợt này thêm 010 và 011; không import
+   DB local hoặc sửa checksum migration cũ.
+3. Cập nhật biến .env như trên. npm run build.
+4. Restart nemo-app và nemo-signing-worker như hiện tại. Thêm process riêng:
+   pm2 start npm --name nemo-certificate-worker --cwd /www/wwwroot/nemo-app --restart-delay 10000 -- run certificate:worker
+   pm2 save
+   Nếu đã có process đó: pm2 restart nemo-certificate-worker --update-env
+   Không chạy đồng thời nhiều tên worker cho cùng chức năng nếu không cần.
+   Hàng đợi vẫn có claim/lease chống xử lý trùng giữa nhiều process.
+5. pm2 logs nemo-certificate-worker --lines 30 --nostream
+6. Vào /admin/devices → Tải lại, xem trạng thái, giờ kiểm tra và heartbeat.
+   Cấu hình SMTP cho cả web và worker để trạng thái cấu hình hiển thị đúng.
+   Worker báo heartbeat mỗi 30 giây khi còn hoạt động; sau 2 giờ không có lượt
+   kiểm tra, admin không tiếp tục hiển thị good như kết quả mới.
+Mẫu systemd thay cho PM2: deploy/nemo-certificate-worker.service. Sửa đường
+ dẫn/user/env theo VPS. Worker cần đọc được INSTALL_STORAGE_DIR và cùng khóa
+AES-GCM, Python/cryptography như bộ ký. Python dùng OpenSSL tại /usr/bin/openssl.
+Nếu chỉ deploy Next standalone, vẫn phải cấp source/dependencies/scripts cho
+worker riêng như hướng dẫn worker ký; web build không tự khởi động monitor.
+
+XÁC MINH VÀ GIỚI HẠN KỸ THUẬT
+Profile CMS phải được Apple ký đúng vai trò; chọn đúng leaf theo SHA256 và
+xác minh chữ ký leaf bằng issuer trong CA bundle công khai, kiểm tra vai trò
+code signing. Không tải CA theo URL khách cung cấp để tự thêm trust anchor.
+OCSP kiểm tra chữ ký issuer hoặc delegate được issuer cấp đúng OCSP Signing,
+serial, issuer hashes, responder ID và thời hạn thisUpdate/nextUpdate. Không
+có nextUpdate chỉ nhận tối đa 1 giờ. Bằng chứng dài hơn 14 ngày bị từ chối.
+CRL phải là CRL đầy đủ được issuer ký, còn hạn; delta/partial/indirect CRL
+không được dùng để kết luận serial vắng mặt là good. Phản hồi lỗi là unknown.
+HTTP status endpoint chỉ nhận hostname Apple trong allowlist, không chuyển
+hướng, proxy, URL có credential hoặc cổng lạ; timeout/giới hạn body rõ ràng.
+OCSP gửi serial và issuer hash công khai, không gửi nội dung profile/P12.
+Bundle CA hiện hỗ trợ Apple Root và WWDR G3 đang dùng; issuer/thuật toán lạ
+sẽ unknown cho tới khi được hỗ trợ và kiểm thử, không tự bỏ xác minh.
+Không thay kiểm tra trên iPad. Lỗi provisioning/UDID/tài khoản/thiết bị bị vô
+hiệu hóa có thể không được thể hiện bằng OCSP good/revoked của certificate.
+Khách không mở được app thì app cũng không thể gửi heartbeat lên server;
+không dùng việc thiếu heartbeat để khẳng định certificate bị thu hồi.
+
+NGUỒN THAM KHẢO
+https://developer.apple.com/help/account/certificates/revoke-a-certificate/
+https://www.apple.com/certificateauthority/
+https://datatracker.ietf.org/doc/html/rfc6960
+https://cryptography.io/en/latest/x509/ocsp/
+https://nodemailer.com/smtp
+https://support.google.com/accounts/answer/185833
+https://developers.google.com/workspace/gmail/imap/imap-smtp
+
+KẾT QUẢ ĐỢT LOCAL
+109/109 bài web/API đạt, không skip; 37/37 Python đạt; lint, typecheck và
+production build đạt, postbuild không có khóa/chứng chỉ/env riêng trong gói.
+Đã đọc OCSP thật của QSCX8W và HNF6HG, xác minh thành công phản hồi good tại
+lúc thử. Đã thao tác Chrome trên local: gắn HNF6HG vào hồ sơ iPad Hải mẫu
+không có bản cài, worker đọc nguồn này và admin hiện kết quả cùng giờ kiểm
+tra. Chỉ hồ sơ mẫu/DB local đổi; checksum trạng thái/version/ngày hạn license
+có sẵn không đổi. Không có bằng chứng gửi SMTP thật do chưa có app password,
+không thử gửi thư ra ngoài và chưa thao tác VPS.
+Trang preview: http://localhost:3117/admin/devices. Worker local chạy riêng,
+cố ý để SMTP_PASSWORD rỗng; cần khởi động lại với cấu hình mail sau khi điền.

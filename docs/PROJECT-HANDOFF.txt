@@ -214,3 +214,44 @@ sử dụng nguồn đó. Migration 009 thêm ios_ipa_releases và release_id nu
 Không đổi key/ID/lease/ngày hết hạn khách cũ; API upload kiểu cũ còn tương thích.
 Chưa có GC hoặc tự chuyển các nguồn cũ. Chi tiết: docs/IPA-LIBRARY.txt.
 Đợt này chưa commit/push hoặc thao tác VPS. Không suy ra live đã có tính năng.
+
+BỔ SUNG LOCAL 05/11/2026 — CHỨNG CHỈ VÀ EMAIL
+Đã thêm monitor theo giờ, OCSP/CRL có xác minh, unknown tách khỏi revoked,
+nhắc hạn và hàng đợi SMTP chống trùng/thử lại. Migration 010/011, script
+certificate:worker, certificate:mail-verify. Hồ sơ cài USB/IPA cũ có thể gắn
+profile công khai để theo dõi, không phải đổi key/IPA hoặc cung cấp P12.
+Không chặn API license/ký vì mạng kiểm tra lỗi. Không tự thay bộ ký hoặc
+sửa hai ID. Gmail gửi/nhận do người dùng chọn chỉ lưu ở .env riêng. Mật khẩu
+ứng dụng chưa có, chưa thử gửi thư thật; không suy ra mail/VPS đã hoạt động.
+Chi tiết/kiểm thử/giới hạn: docs/CERTIFICATE-MONITOR.txt.
+
+BỔ SUNG LOCAL 05/11/2026 — IPA TRẮNG 6.11.31 (335)
+Đã xuất riêng trong workspace Nemo:
+  analysis/nemo-blank-ios-6.11.31-335/Nemo-Blank-6.11.31-335-v1.ipa
+SHA-256: 6bbb7578e1454ee472d96eb1a0bca71a0b262a9c80292d0132b3cfc01da707e2
+Tên Nemo, bundle vn.fractal.nemo-rebuild, iOS >=15, contract
+NemoBlankIdentity-1, API/public key giữ nguyên; không nhúng hai ID khách.
+Giữ Runner/AOT/tài nguyên của 6.11.31; tích hợp native và ký ad-hoc tạm.
+276 assertions native, strict/deep signatures, CRC và 19 test web/ký Apple
+thực trên môi trường local riêng đạt. IPA v1 6.11.23 giữ nguyên.
+Chưa cài thử artifact mới trên thiết bị, chưa thử lượt zsign Linux mới,
+chưa cập nhật VPS hoặc đăng nhập/check-in thực bằng bản mới.
+Đọc RESULT.txt/build-manifest.json/validation.json cùng thư mục release;
+phân tích bản TestFlight nguồn trong analysis/nemo-update-6.11.31-build335.
+Thêm nguồn qua Thư viện IPA rồi cài/kích hoạt thử trước khi cấp rộng.
+
+BỔ SUNG LOCAL 05/11/2026 — FINAL V2 / KEY CŨ ĐÃ XÓA
+Nguồn dùng cho lần tạo lại khách: workspace Nemo/analysis/
+nemo-blank-ios-6.11.31-335-final/Nemo-Blank-6.11.31-335-Final-v2.ipa
+SHA-256: c1956985a91f23a46732a8cbc092cb849ebd61f6532ed44179e6ca3ddc7d8f7a
+Khi verify đúng license đang lưu trả 403 invalid_license và không lỗi mạng,
+hiện nút Nhập key mới; chỉ xóa cache state sau lựa chọn rõ ràng và readback
+ItemNotFound. Giữ proof key/fingerprint, hai ID và dữ liệu app; vẫn đợi
+lease mới hợp lệ trước khi trả ID. Thu hồi/hết hạn/lỗi mạng không bật reset.
+Marker NemoLicenseRecovery-1; source gate vẫn NemoBlankIdentity-1.
+367 assertions native, 42 test web/API/ký Apple thực đạt, không skip.
+Bản v1 và 6.11.23 nguyên trạng. Chưa cài/UI test final trên thiết bị hoặc
+thử lượt ký Linux mới. Chưa thay đổi VPS, xóa hoặc tạo lại Hải.
+Đọc RESULT.txt, validation.json và changes-from-v1.diff trong thư mục final.
+Không cần đổi API/migration chỉ để nhận bản final; phải chọn đúng nguồn
+trong Thư viện IPA khi tạo bản cài.

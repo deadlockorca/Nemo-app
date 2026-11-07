@@ -1,0 +1,62 @@
+NEMO — CÔNG CỤ VỊ TRÍ
+08/11/2026, Asia/Ho_Chi_Minh.
+
+TRUY CẬP
+/locations là trang công khai, mở trực tiếp, không cần mã cài hoặc đăng nhập.
+Có liên kết từ cuối trang /install và menu quản trị. Không thay đổi phiên,
+license, ngày hết hạn, cơ chế ký IPA hoặc dữ liệu chấm công.
+
+DỮ LIỆU
+data/nemo-locations-web.json: 34 điểm hiển thị, 35 mã nguồn từ hai snapshot.
+752004472 và ACC1106 gộp tên "Phòng khám Nhi khoa – BS Nguyễn Tiến Dũng".
+Tìm bằng tên có/không dấu hoặc một trong hai mã đều ra cùng một điểm.
+Hai file snapshot gốc được giữ nguyên. Trang chỉ nhận tên, mã nguồn và tọa độ,
+không đưa metadata tài khoản/các bản ghi nguồn vào props của client.
+Các địa điểm này là dữ liệu cache ngày 08/11, không xác nhận quyền chấm công
+của mọi tài khoản. Trang và dữ liệu hiển thị là công khai theo yêu cầu.
+
+CÁCH HOẠT ĐỘNG
+Chọn điểm -> Tạo tọa độ ngẫu nhiên -> xem khoảng cách -> Sao chép.
+Có sao chép cả cặp, vĩ độ riêng hoặc kinh độ riêng; ô tọa độ cho phép chọn
+thủ công nếu Clipboard API bị từ chối. Đổi điểm xóa kết quả trước đó.
+Tìm kiếm không tự đổi điểm đang chọn. Không tạo tọa độ trước khi chọn điểm.
+Trang không xin GPS, không sửa GPS điện thoại và không gửi nghiệp vụ Nemo.
+Sơ đồ vòng tròn chỉ minh họa khoảng cách; không phải bản đồ địa hình.
+
+THUẬT TOÁN
+Chọn góc đều 0..2pi và bán kính 149*sqrt(U) mét, U thuộc [0,1).
+Lấy mẫu theo diện tích đĩa, chiếu lên mặt cầu bán kính 6.371.008,8 m bằng
+phép quay trong hệ north/east, hỗ trợ cả cực và kinh tuyến 180 độ.
+Dùng 149 m làm biên lấy mẫu để chừa khoảng đệm dưới giới hạn 150 m.
+Làm tròn tọa độ 7 chữ số thập phân, tính lại Haversine từ tọa độ đã làm tròn,
+chỉ trả kết quả khi khoảng cách hữu hạn và <150 m.
+Khoảng cách là số tính từ dữ liệu gốc, không phải độ chính xác GPS đo được,
+không bảo đảm một thao tác chấm công sẽ được hệ thống nghiệp vụ chấp nhận.
+
+KIỂM TRA
+node --import tsx --test tests/locations.test.ts
+Kiểm tra 34 điểm, merge đúng, 10.200 mẫu theo tọa độ thực với phép đo WGS84
+cục bộ độc lập, mẫu sát biên, cực/kinh tuyến 180 độ, phân bố và dữ liệu lỗi.
+Trang không có migration hay biến môi trường mới. JSON được đóng gói khi build;
+cập nhật danh sách cần build/deploy lại theo quy trình web hiện có.
+
+KẾT QUẢ LƯỢT TRIỂN KHAI LOCAL
+6/6 bài kiểm tra đạt; lint các file thay đổi và production build đạt.
+HTTP /locations trả 200 không cần cookie, có 34 nút chọn địa điểm;
+nút tạo ban đầu bị vô hiệu hóa, hai mã gộp tìm được trong dữ liệu hiển thị.
+Liên kết /install -> /locations và các tệp JS/CSS đều trả 200.
+Postbuild đã kiểm tra standalone không chứa .env, .local hoặc khóa/chứng chỉ.
+Chưa kiểm chứng tương tác bằng trình duyệt: browser connector không có sẵn,
+fallback Safari qua Computer Use báo timeout. Cần xem lại giao diện điện thoại
+và thao tác clipboard trên trình duyệt thực. Chưa deploy VPS trong lượt này.
+
+SỬA CSS MODULES SAU PHẢN HỒI GIAO DIỆN
+Quy tắc Turbopack *.css -> as: *.css đã làm mất phần mở rộng .module.css,
+khiến các class của component không được xuất vào HTML. CSS vẫn trả 200
+nhưng không gắn với thành phần nào; kiểm tra HTTP ban đầu không phát hiện lỗi.
+Đã giới hạn loader Tailwind cho globals.css, để Next xử lý CSS Modules gốc.
+Production build/lint đạt. scripts/check-location-styles.mjs kiểm tra class
+thực trong HTML khớp các rule CSS, grid, kích thước SVG và breakpoint mobile;
+đã chạy đạt trên cả dev :3000 và production preview :3128.
+Đã quan sát trực tiếp trên Chrome qua native Computer Use: bố cục desktop
+hai cột và sơ đồ hiển thị đúng. Chưa xác nhận mobile/clipboard trực quan.

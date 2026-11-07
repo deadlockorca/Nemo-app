@@ -96,3 +96,8 @@ truy cập hay cập nhật VPS; không đổi hai key khách đang dùng.
 SHA-256 IPA thử ký trên Ubuntu (chỉ là artifact thử, không upload làm IPA trắng):
   QSCX8W: f0a5f3e084624ad5727bca1ca343cd19cd76291d2e8916191ca065545bae57a2
   HNF6HG: 86d4c9336c653a00895685b4b3329d2ae0d47cd7b034b7ecf1a850d3330aa9f2
+
+THEO DÕI CHỨNG CHỈ — 05/11/2026
+Đợt bổ sung có migration 010/011 và worker certificate:worker riêng, không
+chạy kiểm tra OCSP trong request ký IPA. Cấu hình Gmail/SMTP và PM2 tại
+CERTIFICATE-MONITOR.txt. Chưa deploy hoặc xác nhận SMTP thật trong đợt local.

@@ -1,0 +1,25 @@
+[Unit]
+Description=Nemo hourly Apple certificate monitor and email alerts
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nemo
+Group=nemo
+WorkingDirectory=/opt/nemo/app/current
+EnvironmentFile=/opt/nemo/app/current/.env
+Environment=NODE_ENV=production
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/node /opt/nemo/app/current/node_modules/tsx/dist/cli.mjs scripts/certificate-worker.ts
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=120
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

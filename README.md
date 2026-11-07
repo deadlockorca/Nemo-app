@@ -11,3 +11,5 @@ Customer management, license creation/extension/revocation, device release and a
 The installation portal and private signing worker support Apple codesign on macOS and a pinned zsign build on Linux. See docs/INSTALLATION-LOCAL.txt and docs/DEPLOYMENT-LINUX.txt for validation results, prerequisites and the deployment procedure. Deployment evidence and its limits are recorded in docs/PROJECT-HANDOFF.txt; verify the live server before assuming its current state.
 
 Shared, versioned blank IPA sources are managed at `/admin/ipa-library` and reused when creating customer installations. Apply migration 009 before running this version; see [IPA-LIBRARY.txt](./docs/IPA-LIBRARY.txt). Existing installations and license contracts remain supported.
+
+Hourly certificate revocation/expiry monitoring, independent worker, private-profile attachment for legacy devices and SMTP alerts: see [CERTIFICATE-MONITOR.txt](./docs/CERTIFICATE-MONITOR.txt). Apply migrations 010/011 and configure mail before enabling the worker.
