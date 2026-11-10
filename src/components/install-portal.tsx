@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { formatDate } from "@/lib/management-types";
 import type { CustomerInstall } from "@/lib/installation-types";
@@ -85,6 +84,6 @@ export function InstallPortal() {
         <button className="install-text-button" disabled={busy} onClick={async () => { try { await request("logout", {}); setCurrent(null); setLink(null); setError(""); } catch (e) { setError((e as Error).message); } }}>Dùng mã cài khác</button>
       </> : <><p className="install-description">Nhập mã cài bạn được cấp để nhận bản Nemo dành cho thiết bị của mình.</p><form className="login-form" onSubmit={login}><label htmlFor="install-code">Mã cài đặt</label><input id="install-code" name="code" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" spellCheck={false} autoCapitalize="none" maxLength={100} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required disabled={busy} /><button className="primary-button" disabled={busy}>{busy ? "Đang kiểm tra…" : "Tiếp tục"}<span aria-hidden="true">→</span></button></form><p className="install-hint">Mã cài có hiệu lực 15 phút kể từ lúc được cấp, dùng để tải app. Key kích hoạt sẽ được nhập trong Nemo sau khi cài.</p></>}
       {error && <div className="error-box" role="alert">{error}</div>}
-    </section><footer className="install-footer"><Link className="install-text-button" href="/locations">Mở công cụ vị trí →</Link><p>Cần hỗ trợ? Liên hệ người đã cấp mã cài cho bạn.</p></footer>
+    </section><footer className="install-footer"><p>Cần hỗ trợ? Liên hệ người đã cấp mã cài cho bạn.</p></footer>
   </main>;
 }
