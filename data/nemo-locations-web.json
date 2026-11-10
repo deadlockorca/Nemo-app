@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "location_count": 37,
-  "source_record_count": 44,
+  "location_count": 47,
+  "source_record_count": 59,
   "sources": [
     {
       "file": "nemo-locations-2026-11-08.json",
@@ -17,10 +17,15 @@
       "file": "nemo-locations-2026-11-10.json",
       "captured_at": "2026-11-10T14:17:31.880402+07:00",
       "location_count": 9
+    },
+    {
+      "file": "nemo-locations-2026-11-10-account-04.json",
+      "captured_at": "2026-11-10T16:36:26.960742+07:00",
+      "location_count": 15
     }
   ],
   "notes": [
-    "Danh sách dùng cho trang /locations, tổng hợp từ ba snapshot ngày 08 và 10/11/2026.",
+    "Danh sách dùng cho trang /locations, tổng hợp từ bốn snapshot ngày 08 và 10/11/2026.",
     "Theo yêu cầu người dùng, gộp mã 752004472 và ACC1106 thành một mục tên Phòng khám Nhi khoa – BS Nguyễn Tiến Dũng; mã đại diện ACC1106.",
     "source_codes và source_records giữ mã gốc và dữ liệu từng nguồn. Các cờ is_hospital/is_pos khác nhau được giữ ở source_records, không áp đặt chung cho điểm gộp.",
     "Các bản ghi cùng mã được gộp vào một điểm khi tọa độ khớp; giữ nguồn ở source_records. Không tự gộp khác mã ngoài cặp được chỉ định.",
@@ -299,6 +304,17 @@
           "is_pos": "N",
           "checkin_distance_request": "Y",
           "checkin_valid_distance": "150"
+        },
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "3A-HCMC",
+          "name": "Van Phong 3A Ho Chi Minh",
+          "lat": "10.7637881",
+          "long": "106.6563052",
+          "is_hospital": "Y",
+          "is_pos": "N",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
         }
       ]
     },
@@ -526,6 +542,17 @@
           "is_pos": "N",
           "checkin_distance_request": "Y",
           "checkin_valid_distance": "150"
+        },
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "RO-HCMC",
+          "name": "Van Phong RO Ho Chi Minh",
+          "lat": "10.773930473328281",
+          "long": "106.70575665220804",
+          "is_hospital": "Y",
+          "is_pos": "N",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
         }
       ]
     },
@@ -625,6 +652,17 @@
         },
         {
           "source_file": "nemo-locations-2026-11-10.json",
+          "code": "3A-HANO",
+          "name": "Van Phong 3A Ha Noi",
+          "lat": "21.0313893",
+          "long": "105.7826891",
+          "is_hospital": "Y",
+          "is_pos": "N",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        },
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
           "code": "3A-HANO",
           "name": "Van Phong 3A Ha Noi",
           "lat": "21.0313893",
@@ -883,6 +921,17 @@
           "is_pos": "N",
           "checkin_distance_request": "Y",
           "checkin_valid_distance": "150"
+        },
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "KHO-HANO",
+          "name": "Kho Ha Noi",
+          "lat": "21.048694000000001",
+          "long": "105.74212799999999",
+          "is_hospital": "Y",
+          "is_pos": "N",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
         }
       ]
     },
@@ -910,6 +959,17 @@
         },
         {
           "source_file": "nemo-locations-2026-11-10.json",
+          "code": "RO-HANO",
+          "name": "Van Phong RO Ha Noi",
+          "lat": "21.0293447",
+          "long": "105.8115129",
+          "is_hospital": "Y",
+          "is_pos": "N",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        },
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
           "code": "RO-HANO",
           "name": "Van Phong RO Ha Noi",
           "lat": "21.0293447",
@@ -986,6 +1046,246 @@
           "name": "Benh Vien Ung Buou Ha Noi",
           "lat": "21.004599",
           "long": "105.859379",
+          "is_hospital": "Y",
+          "is_pos": "N",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        }
+      ]
+    },
+    {
+      "code": "100091273",
+      "name": "PHONG KHAM CHUYEN KHOA NHI BAC SI HAI",
+      "lat": "20.998776",
+      "long": "105.7041983",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150",
+      "source_codes": [
+        "100091273"
+      ],
+      "source_records": [
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "100091273",
+          "name": "PHONG KHAM CHUYEN KHOA NHI BAC SI HAI",
+          "lat": "20.998776",
+          "long": "105.7041983",
+          "is_hospital": "N",
+          "is_pos": "Y",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        }
+      ]
+    },
+    {
+      "code": "100094810",
+      "name": "PHONG KHAM CHUYEN KHOA SAN-NHI 18 STARLAKE",
+      "lat": "21.05179763965617",
+      "long": "105.79915135990456",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150",
+      "source_codes": [
+        "100094810"
+      ],
+      "source_records": [
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "100094810",
+          "name": "PHONG KHAM CHUYEN KHOA SAN-NHI 18 STARLAKE",
+          "lat": "21.05179763965617",
+          "long": "105.79915135990456",
+          "is_hospital": "N",
+          "is_pos": "Y",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        }
+      ]
+    },
+    {
+      "code": "100094894",
+      "name": "QUAY THUOC MINH CHAU",
+      "lat": "20.921359681927548",
+      "long": "105.85382035564744",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150",
+      "source_codes": [
+        "100094894"
+      ],
+      "source_records": [
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "100094894",
+          "name": "QUAY THUOC MINH CHAU",
+          "lat": "20.921359681927548",
+          "long": "105.85382035564744",
+          "is_hospital": "N",
+          "is_pos": "Y",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        }
+      ]
+    },
+    {
+      "code": "100096149",
+      "name": "HO KINH DOANH NHA THUOC HA PHUONG",
+      "lat": "20.92135980925601",
+      "long": "105.85382046473971",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150",
+      "source_codes": [
+        "100096149"
+      ],
+      "source_records": [
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "100096149",
+          "name": "HO KINH DOANH NHA THUOC HA PHUONG",
+          "lat": "20.92135980925601",
+          "long": "105.85382046473971",
+          "is_hospital": "N",
+          "is_pos": "Y",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        }
+      ]
+    },
+    {
+      "code": "100096256",
+      "name": "64 MART",
+      "lat": "21.027824787924857",
+      "long": "105.83433019851168",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150",
+      "source_codes": [
+        "100096256"
+      ],
+      "source_records": [
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "100096256",
+          "name": "64 MART",
+          "lat": "21.027824787924857",
+          "long": "105.83433019851168",
+          "is_hospital": "N",
+          "is_pos": "Y",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        }
+      ]
+    },
+    {
+      "code": "ACC0939",
+      "name": "Benh Vien Da Khoa Nong Nghiep",
+      "lat": "20.9210624",
+      "long": "105.8528022",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150",
+      "source_codes": [
+        "ACC0939"
+      ],
+      "source_records": [
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "ACC0939",
+          "name": "Benh Vien Da Khoa Nong Nghiep",
+          "lat": "20.9210624",
+          "long": "105.8528022",
+          "is_hospital": "Y",
+          "is_pos": "N",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        }
+      ]
+    },
+    {
+      "code": "ACC0961",
+      "name": "Benh Vien Da Khoa Xanh Pon",
+      "lat": "21.030980830134897",
+      "long": "105.83447474238797",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150",
+      "source_codes": [
+        "ACC0961"
+      ],
+      "source_records": [
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "ACC0961",
+          "name": "Benh Vien Da Khoa Xanh Pon",
+          "lat": "21.030980830134897",
+          "long": "105.83447474238797",
+          "is_hospital": "Y",
+          "is_pos": "N",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        }
+      ]
+    },
+    {
+      "code": "ACC3168",
+      "name": "Phòng Khám Chuyên Khoa Nhi Bác Sĩ Hải",
+      "lat": "20.9987763",
+      "long": "105.7041973",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150",
+      "source_codes": [
+        "ACC3168"
+      ],
+      "source_records": [
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "ACC3168",
+          "name": "Phòng Khám Chuyên Khoa Nhi Bác Sĩ Hải",
+          "lat": "20.9987763",
+          "long": "105.7041973",
+          "is_hospital": "Y",
+          "is_pos": "N",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        }
+      ]
+    },
+    {
+      "code": "ACC3208",
+      "name": "Phòng Khám Chuyên Khoa Sản - Nhi 18 Starlake",
+      "lat": "21.05179770754927",
+      "long": "105.79904701027566",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150",
+      "source_codes": [
+        "ACC3208"
+      ],
+      "source_records": [
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "ACC3208",
+          "name": "Phòng Khám Chuyên Khoa Sản - Nhi 18 Starlake",
+          "lat": "21.05179770754927",
+          "long": "105.79904701027566",
+          "is_hospital": "Y",
+          "is_pos": "N",
+          "checkin_distance_request": "Y",
+          "checkin_valid_distance": "150"
+        }
+      ]
+    },
+    {
+      "code": "ACC3283",
+      "name": "Phòng khám 49 Trường Lâm",
+      "lat": "21.062206422036486",
+      "long": "105.89709127731109",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150",
+      "source_codes": [
+        "ACC3283"
+      ],
+      "source_records": [
+        {
+          "source_file": "nemo-locations-2026-11-10-account-04.json",
+          "code": "ACC3283",
+          "name": "Phòng khám 49 Trường Lâm",
+          "lat": "21.062206422036486",
+          "long": "105.89709127731109",
           "is_hospital": "Y",
           "is_pos": "N",
           "checkin_distance_request": "Y",

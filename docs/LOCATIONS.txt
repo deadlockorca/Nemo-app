@@ -7,7 +7,7 @@ Có liên kết từ cuối trang /install và menu quản trị. Không thay đ
 license, ngày hết hạn, cơ chế ký IPA hoặc dữ liệu chấm công.
 
 DỮ LIỆU
-data/nemo-locations-web.json: 37 điểm hiển thị, 38 mã nguồn từ ba snapshot (44 bản ghi nguồn).
+data/nemo-locations-web.json: 47 điểm hiển thị, 48 mã nguồn từ bốn snapshot (59 bản ghi nguồn).
 752004472 và ACC1106 gộp tên "Phòng khám Nhi khoa – BS Nguyễn Tiến Dũng".
 Tìm bằng tên có/không dấu hoặc một trong hai mã đều ra cùng một điểm.
 Các file snapshot gốc được giữ nguyên. Trang chỉ nhận tên, mã nguồn và tọa độ,
@@ -35,7 +35,7 @@ không bảo đảm một thao tác chấm công sẽ được hệ thống nghi
 
 KIỂM TRA
 node --import tsx --test tests/locations.test.ts
-Kiểm tra 37 điểm, merge đúng, 11.100 mẫu theo tọa độ thực với phép đo WGS84
+Kiểm tra 47 điểm, merge đúng, 14.100 mẫu theo tọa độ thực với phép đo WGS84
 cục bộ độc lập, mẫu sát biên, cực/kinh tuyến 180 độ, phân bố và dữ liệu lỗi.
 Trang không có migration hay biến môi trường mới. JSON được đóng gói khi build;
 cập nhật danh sách cần build/deploy lại theo quy trình web hiện có.
@@ -64,3 +64,8 @@ hai cột và sơ đồ hiển thị đúng. Chưa xác nhận mobile/clipboard 
 CẬP NHẬT 10/11/2026
 Gộp 9 điểm có tọa độ từ tài khoản mới: 6 mã đã có giữ nguyên tọa độ,
 3 mã mới ACC0958, ACC1018, ACC1021. Tổng 37 điểm hiển thị.
+
+CẬP NHẬT TÀI KHOẢN 04 — 10/11/2026
+Thêm 10 mã mới từ snapshot 15 điểm có tọa độ; 5 mã đã có giữ nguyên.
+Giữ riêng hai mã phòng khám Bác sĩ Hải và hai mã 18 Starlake.
+Tổng hiện tại 47 điểm hiển thị, 48 mã nguồn, 59 bản ghi từ bốn snapshot.
