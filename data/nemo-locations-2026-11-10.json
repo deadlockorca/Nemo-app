@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-11-10T14:17:31.880402+07:00",
+  "source": "Connected iPhone 7, Nemo local cache, nemo.db/db_hospitals",
+  "snapshot_label": "account-03",
+  "location_count": 9,
+  "notes": [
+    "Dữ liệu cache trên iPhone ngày 10/11/2026; không xác nhận quyền chấm công hiện tại.",
+    "Chỉ giữ 9 địa điểm có tọa độ; loại 6 mục thiếu tọa độ.",
+    "Giữ nguyên chuỗi tọa độ và cấu hình nguồn."
+  ],
+  "locations": [
+    {
+      "code": "3A-HANO",
+      "name": "Van Phong 3A Ha Noi",
+      "lat": "21.0313893",
+      "long": "105.7826891",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "3A-HCMC",
+      "name": "Van Phong 3A Ho Chi Minh",
+      "lat": "10.7637881",
+      "long": "106.6563052",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC0958",
+      "name": "Benh Vien Hong Ngoc",
+      "lat": "21.0419743",
+      "long": "105.8450382",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC1018",
+      "name": "Benh Vien Phoi Ha Noi",
+      "lat": "21.002648",
+      "long": "105.85836",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC1020",
+      "name": "Benh Vien Thanh Nhan",
+      "lat": "21.003412",
+      "long": "105.859587",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "ACC1021",
+      "name": "Benh Vien Ung Buou Ha Noi",
+      "lat": "21.004599",
+      "long": "105.859379",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "KHO-HANO",
+      "name": "Kho Ha Noi",
+      "lat": "21.048694000000001",
+      "long": "105.74212799999999",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "RO-HANO",
+      "name": "Van Phong RO Ha Noi",
+      "lat": "21.0293447",
+      "long": "105.8115129",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    },
+    {
+      "code": "RO-HCMC",
+      "name": "Van Phong RO Ho Chi Minh",
+      "lat": "10.773930473328281",
+      "long": "106.70575665220804",
+      "is_hospital": "Y",
+      "is_pos": "N",
+      "checkin_distance_request": "Y",
+      "checkin_valid_distance": "150"
+    }
+  ]
+}

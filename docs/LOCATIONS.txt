@@ -7,12 +7,12 @@ Có liên kết từ cuối trang /install và menu quản trị. Không thay đ
 license, ngày hết hạn, cơ chế ký IPA hoặc dữ liệu chấm công.
 
 DỮ LIỆU
-data/nemo-locations-web.json: 34 điểm hiển thị, 35 mã nguồn từ hai snapshot.
+data/nemo-locations-web.json: 37 điểm hiển thị, 38 mã nguồn từ ba snapshot (44 bản ghi nguồn).
 752004472 và ACC1106 gộp tên "Phòng khám Nhi khoa – BS Nguyễn Tiến Dũng".
 Tìm bằng tên có/không dấu hoặc một trong hai mã đều ra cùng một điểm.
-Hai file snapshot gốc được giữ nguyên. Trang chỉ nhận tên, mã nguồn và tọa độ,
+Các file snapshot gốc được giữ nguyên. Trang chỉ nhận tên, mã nguồn và tọa độ,
 không đưa metadata tài khoản/các bản ghi nguồn vào props của client.
-Các địa điểm này là dữ liệu cache ngày 08/11, không xác nhận quyền chấm công
+Các địa điểm này là dữ liệu cache ngày 08 và 10/11, không xác nhận quyền chấm công
 của mọi tài khoản. Trang và dữ liệu hiển thị là công khai theo yêu cầu.
 
 CÁCH HOẠT ĐỘNG
@@ -35,7 +35,7 @@ không bảo đảm một thao tác chấm công sẽ được hệ thống nghi
 
 KIỂM TRA
 node --import tsx --test tests/locations.test.ts
-Kiểm tra 34 điểm, merge đúng, 10.200 mẫu theo tọa độ thực với phép đo WGS84
+Kiểm tra 37 điểm, merge đúng, 11.100 mẫu theo tọa độ thực với phép đo WGS84
 cục bộ độc lập, mẫu sát biên, cực/kinh tuyến 180 độ, phân bố và dữ liệu lỗi.
 Trang không có migration hay biến môi trường mới. JSON được đóng gói khi build;
 cập nhật danh sách cần build/deploy lại theo quy trình web hiện có.
@@ -60,3 +60,7 @@ thực trong HTML khớp các rule CSS, grid, kích thước SVG và breakpoint 
 đã chạy đạt trên cả dev :3000 và production preview :3128.
 Đã quan sát trực tiếp trên Chrome qua native Computer Use: bố cục desktop
 hai cột và sơ đồ hiển thị đúng. Chưa xác nhận mobile/clipboard trực quan.
+
+CẬP NHẬT 10/11/2026
+Gộp 9 điểm có tọa độ từ tài khoản mới: 6 mã đã có giữ nguyên tọa độ,
+3 mã mới ACC0958, ACC1018, ACC1021. Tổng 37 điểm hiển thị.
