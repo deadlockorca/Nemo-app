@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { formatDate } from "@/lib/management-types";
 import type { CustomerInstall } from "@/lib/installation-types";
 
@@ -23,9 +23,19 @@ export function InstallPortal() {
     if (!r.ok) throw Object.assign(new Error(body.error || "Chưa thể xử lý. Hãy thử lại."), { status: r.status });
     return body;
   }, []);
+  const initialSession = useRef<Promise<CustomerInstall> | null>(null);
+  const linkLogin = useRef(false);
   useEffect(() => {
     let live = true;
-    void request("status").then((r) => { if (live) setCurrent(r); }).catch((e) => { if (live && e.status !== 401) setError(e.message); }).finally(() => { if (live) setChecking(false); });
+    if (!initialSession.current) {
+      const incoming = new URLSearchParams(window.location.hash.slice(1)).get("code");
+      linkLogin.current = incoming !== null;
+      if (incoming !== null) window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      initialSession.current = incoming !== null
+        ? request("login", { code: incoming }).then(() => request("status"))
+        : request("status");
+    }
+    void initialSession.current.then((r) => { if (live) setCurrent(r); }).catch((e) => { if (live && (e.status !== 401 || linkLogin.current)) setError(e.message); }).finally(() => { if (live) setChecking(false); });
     return () => { live = false; };
   }, [request]);
   useEffect(() => {

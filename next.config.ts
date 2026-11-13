@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
     : [],
   output: "standalone",
   outputFileTracingIncludes: {
+    "/api/admin/signing-replacements/**": ["./scripts/ios/certificate_status.py", "./scripts/ios/package.py", "./scripts/ios/macho.py", "./scripts/ios/verify.py", "./scripts/ios/apple-chain.pem"],
+    "/api/admin/signing-sets/**": ["./scripts/ios/signing_assets.py", "./scripts/ios/certificate_status.py", "./scripts/ios/package.py", "./scripts/ios/macho.py", "./scripts/ios/verify.py", "./scripts/ios/apple-chain.pem"],
     "/api/admin/ipa-releases/**": ["./scripts/ios/package.py", "./scripts/ios/macho.py", "./scripts/ios/verify.py", "./scripts/ios/apple-chain.pem"],
     "/api/admin/installations/**": ["./scripts/ios/package.py", "./scripts/ios/macho.py", "./scripts/ios/verify.py", "./scripts/ios/apple-chain.pem"],
     "/api/admin/device-profiles/**": ["./scripts/ios/certificate_status.py", "./scripts/ios/package.py", "./scripts/ios/macho.py", "./scripts/ios/verify.py", "./scripts/ios/apple-chain.pem"],

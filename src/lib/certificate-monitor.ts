@@ -62,15 +62,17 @@ async function enqueue(db: PoolConnection, input: { kind: string; certificate?: 
 export async function runCertificateCheck(check = checkCertificateAssets, onlyCertificate?: string) {
   if (onlyCertificate && !/^[a-f0-9]{64}$/.test(onlyCertificate)) throw new Error("Invalid certificate reference");
   await getDb().execute(`INSERT IGNORE INTO ios_certificate_checks (certificate_sha256) SELECT DISTINCT ${digest} FROM ${sourceJoin} WHERE ${digest} REGEXP '^[a-f0-9]{64}$'`);
+  await getDb().execute(`INSERT IGNORE INTO ios_certificate_checks (certificate_sha256) SELECT DISTINCT certificate_sha256 FROM ios_signing_sets WHERE state = 'active'`);
   const claim = randomId();
   const task = await transaction(async db => {
     const [rows] = await db.execute<RowDataPacket[]>(`SELECT s.* FROM ios_certificate_checks s WHERE s.next_check_at <= UTC_TIMESTAMP(3) AND (s.claim_until IS NULL OR s.claim_until <= UTC_TIMESTAMP(3))
-      AND EXISTS (SELECT 1 FROM ${sourceJoin} WHERE ${digest} = s.certificate_sha256)
+      AND (EXISTS (SELECT 1 FROM ${sourceJoin} WHERE ${digest} = s.certificate_sha256) OR EXISTS (SELECT 1 FROM ios_signing_sets ss WHERE ss.certificate_sha256 = s.certificate_sha256 AND ss.state = 'active'))
       ${onlyCertificate ? "AND s.certificate_sha256 = ?" : ""} ORDER BY s.next_check_at LIMIT 1 FOR UPDATE SKIP LOCKED`, onlyCertificate ? [onlyCertificate] : []);
     if (!rows.length) return null;
     await db.execute(`UPDATE ios_certificate_checks SET claim_token = ?, claim_until = UTC_TIMESTAMP(3) + INTERVAL 5 MINUTE WHERE certificate_sha256 = ?`, [claim, rows[0].certificate_sha256]);
     const [sources] = await db.execute<RowDataPacket[]>(`SELECT COALESCE(a.secrets_key, i.secrets_key) AS secrets_key, ${digest} AS certificate_sha256 FROM ${sourceJoin} WHERE ${digest} = ? ORDER BY i.created_at DESC LIMIT 1`, [rows[0].certificate_sha256]);
-    return { certificate_sha256: String(rows[0].certificate_sha256), incident: Number(rows[0].incident), last_confirmed_status: rows[0].last_confirmed_status as string | null, source: sources[0] };
+    const [library] = await db.execute<RowDataPacket[]>(`SELECT secrets_key, certificate_sha256 FROM ios_signing_sets WHERE certificate_sha256 = ? AND state = 'active' ORDER BY id DESC LIMIT 1`, [rows[0].certificate_sha256]);
+    return { certificate_sha256: String(rows[0].certificate_sha256), incident: Number(rows[0].incident), last_confirmed_status: rows[0].last_confirmed_status as string | null, source: sources[0] || library[0] };
   });
   if (!task) return false;
   let result: CertificateResult;

@@ -13,3 +13,5 @@ The installation portal and private signing worker support Apple codesign on mac
 Shared, versioned blank IPA sources are managed at `/admin/ipa-library` and reused when creating customer installations. Apply migration 009 before running this version; see [IPA-LIBRARY.txt](./docs/IPA-LIBRARY.txt). Existing installations and license contracts remain supported.
 
 Hourly certificate revocation/expiry monitoring, independent worker, private-profile attachment for legacy devices and SMTP alerts: see [CERTIFICATE-MONITOR.txt](./docs/CERTIFICATE-MONITOR.txt). Apply migrations 010/011 and configure mail before enabling the worker.
+
+Encrypted signing-set inventory and device associations: `/admin/signing-sets`. Apply migration 012 before updating the web and certificate worker. See [SIGNING-SETS.txt](./docs/SIGNING-SETS.txt). Inventory associations do not replace existing signing assets. Per-device replacement is available from Devices → Thay bộ ký; apply migration 013 and restart the signing worker after existing jobs finish. A new installation is assigned only after verified signing and explicit link issuance.

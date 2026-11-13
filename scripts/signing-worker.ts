@@ -2,6 +2,7 @@ import "./env";
 import { setTimeout as delay } from "node:timers/promises";
 import { getDb } from "../src/lib/db";
 import { cleanupInstallTokens, runSigningJob } from "../src/lib/installations";
+import { runReplacementJob } from "../src/lib/signing-replacements";
 import { prepareStorage } from "../src/lib/install-storage";
 
 let stopping = false;
@@ -11,10 +12,11 @@ try {
   if (!["darwin", "linux"].includes(process.platform)) throw new Error("The signing worker requires macOS or Linux.");
   await prepareStorage();
   console.log("Nemo signing worker started. Signing assets and passwords are not logged.");
-  let cleanupAt = 0;
+  let cleanupAt = 0, replacementTurn = false;
   do {
     if (Date.now() > cleanupAt) { await cleanupInstallTokens(); cleanupAt = Date.now() + 60000; }
-    const worked = await runSigningJob();
+    const worked = replacementTurn ? await runReplacementJob() || await runSigningJob() : await runSigningJob() || await runReplacementJob();
+    replacementTurn = !replacementTurn;
     if (process.argv.includes("--once")) break;
     if (!worked && !stopping) await delay(2000);
   } while (!stopping);

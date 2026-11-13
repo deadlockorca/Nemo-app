@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS ios_signing_replacements (
+  id CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+  device_profile_id BIGINT UNSIGNED NULL,
+  signing_set_id BIGINT UNSIGNED NOT NULL,
+  release_id CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  snapshot JSON NOT NULL,
+  status ENUM('queued','signing','ready','issued','failed','cancelled') NOT NULL DEFAULT 'queued',
+  active_device BIGINT UNSIGNED GENERATED ALWAYS AS (CASE WHEN status IN ('queued','signing','ready') THEN device_profile_id ELSE NULL END) STORED UNIQUE,
+  claim_token CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NULL,
+  heartbeat_at DATETIME(3) NULL,
+  output_key CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NULL,
+  output_sha256 CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+  metadata JSON NULL,
+  error_code VARCHAR(60) NULL,
+  installation_id CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  finished_at DATETIME(3) NULL,
+  issued_at DATETIME(3) NULL,
+  CONSTRAINT fk_replacement_set FOREIGN KEY (signing_set_id) REFERENCES ios_signing_sets(id),
+  CONSTRAINT fk_replacement_release FOREIGN KEY (release_id) REFERENCES ios_ipa_releases(id),
+  INDEX idx_replacement_queue (status, created_at),
+  INDEX idx_replacement_history (device_profile_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

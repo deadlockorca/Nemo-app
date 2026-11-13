@@ -17,6 +17,8 @@ export type CustomerInstall = {
   expiresAt: string; expiresIn: number;
 };
 export const signingErrors: Record<string, string> = {
+  certificate_not_verified: "Chưa xác minh được chứng chỉ hợp lệ qua Apple. Kiểm tra bộ ký và thử lại.",
+  replacement_changed: "Hồ sơ, key hoặc bộ ký đã thay đổi. Tải lại dữ liệu và tạo yêu cầu mới.",
   wrong_p12_password: "Mật khẩu .p12 không đúng hoặc tệp chứng chỉ không hợp lệ.",
   certificate_expired: "Chứng chỉ chưa có hiệu lực hoặc đã hết hạn.",
   profile_expired: "Hồ sơ cấp phép chưa có hiệu lực hoặc đã hết hạn.",

@@ -14,6 +14,9 @@ export const sectionTitles: Record<ManagementSection, string> = {
   customers: "Khách hàng", licenses: "Quản lý key", devices: "Thiết bị", activity: "Lịch sử hoạt động",
 };
 export const actionTitles: Record<string, string> = {
+  "replacement.queued": "Yêu cầu ký lại cho thiết bị", "replacement.cancelled": "Hủy yêu cầu thay bộ ký", "replacement.issued": "Cấp bản cài thay bộ ký",
+  "signing_set.created": "Thêm bộ ký", "signing_set.edit": "Sửa bộ ký", "signing_set.archive": "Lưu trữ bộ ký", "signing_set.restore": "Khôi phục bộ ký",
+  "signing_set.link": "Liên kết thiết bị trong kho bộ ký", "signing_set.unlink": "Gỡ liên kết thiết bị trong kho bộ ký",
   "device_profile.monitor_attached": "Gắn profile theo dõi chứng chỉ",
   "ipa_release.created": "Thêm phiên bản IPA trắng", "ipa_release.archived": "Lưu trữ phiên bản IPA", "ipa_release.restored": "Khôi phục phiên bản IPA",
   "device_profile.created": "Thêm hồ sơ thiết bị", "device_profile.updated": "Sửa hồ sơ thiết bị", "device_profile.deleted": "Xóa hồ sơ thiết bị", "device_profile.installation_linked": "Gắn bộ ký với thiết bị",

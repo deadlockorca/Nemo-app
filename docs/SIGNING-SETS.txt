@@ -1,0 +1,132 @@
+BỘ KÝ — QUẢN LÝ KHO VÀ LIÊN KẾT THIẾT BỊ
+
+Trang quản trị: /admin/signing-sets (menu “Bộ ký”).
+
+Phạm vi
+- Tải .p12, mật khẩu và .mobileprovision; kiểm tra khóa riêng khớp chứng chỉ,
+  profile có chữ ký Apple, chứng chỉ có trong profile, team, quyền ký Nemo,
+  hạn chứng chỉ/profile và danh sách UDID.
+- Chỉ hỗ trợ profile development/ad-hoc có danh sách thiết bị, như luồng ký hiện tại.
+- Tệp và mật khẩu dùng kho AES-256-GCM hiện tại. API danh sách/chi tiết không trả
+  secrets_key, .p12, mật khẩu hay nội dung thô profile. Không có API tải bộ ký.
+- Sửa tên/ghi chú; lưu trữ/khôi phục; xem UDID và liên kết/gỡ thiết bị trong kho.
+- Mỗi bộ ký giữ nguyên tài liệu gốc. Muốn thay .p12/profile, thêm bộ ký mới;
+  giữ bộ cũ để đối chiếu. Các profile khác nhau có thể dùng chung chứng chỉ.
+- Mỗi thiết bị có thể liên kết với nhiều bộ ký; đây là quan hệ quản lý trong kho.
+  Gỡ liên kết không gỡ app, không thu hồi link cài hay license.
+- Lưu trữ không xóa tài liệu/liên kết. Bộ đã lưu trữ không nhận liên kết mới.
+- Liên kết chỉ chấp nhận UDID có trong profile. Nếu hồ sơ đổi UDID sau đó,
+  màn hình cảnh báo liên kết cũ cần gỡ và liên kết lại.
+
+Không thay đổi khách đang dùng
+- Migration 012 chỉ thêm hai bảng; không sửa installation_id, license,
+  device identity hoặc profile theo dõi hiện tại.
+- Bộ ký đã có trong bản cài cũ không tự được sao chép vào kho mới. Thêm bộ ký
+  muốn quản lý bằng form tải lên. Bản cài cũ tiếp tục dùng kho bí mật hiện tại.
+- “Hồ sơ cùng chứng chỉ” đối chiếu SHA-256 từ bản cài hoặc profile theo dõi
+  hiện tại, không khẳng định khách đã cài/chạy app trên điện thoại.
+- Đã có luồng thay bộ ký cho TỪNG thiết bị. Xem phần bên dưới.
+  Chỉ khi quản trị bấm Cấp link cài lại, hồ sơ mới chuyển sang bản cài mới.
+
+Theo dõi Apple và email
+- Worker kiểm tra cả chứng chỉ trong các bộ ký active, kể cả chưa liên kết.
+  Một SHA-256 dùng chung nhiều bộ/profile chỉ được kiểm tra một lần mỗi chu kỳ.
+- Khi lưu trữ hết các bộ của một chứng chỉ, worker vẫn theo dõi nếu chứng chỉ đó
+  còn được tham chiếu bởi hồ sơ/bản cài hiện tại.
+- Upload kiểm tra tài liệu cục bộ, không phải xác minh thu hồi trực tuyến tức thì.
+  Trạng thái ban đầu “Chưa xác minh được”; cần certificate worker hoạt động.
+- Bộ ký trong kho dùng chung kết quả kiểm tra Apple với hệ thống hiện tại.
+- Email hiện tại vẫn dựa trên hồ sơ có bản cài/profile theo dõi. Liên kết kho
+  không tự tạo cảnh báo “thiết bị bị ảnh hưởng”, không thay nguồn theo dõi.
+  Bộ chỉ nằm trong kho chưa có hồ sơ theo dõi: cập nhật trạng thái, chưa gửi email.
+
+Đưa lên VPS
+1. Sao lưu database, thư mục INSTALL_STORAGE_DIR và cấu hình khóa mã hóa.
+   Giữ nguyên INSTALL_STORAGE_KEY; đổi/mất khóa sẽ không giải mã được bộ ký cũ.
+2. Kéo code, cài dependencies. Chạy migrations 012 và 013 TRƯỚC khi khởi động web/worker mới:
+
+   cd /www/wwwroot/nemo-app
+   git pull --ff-only
+   npm ci
+   npm run db:migrate
+   npm run build
+   pm2 restart nemo-app --update-env
+   pm2 restart nemo-certificate-worker --update-env
+   pm2 restart nemo-signing-worker --update-env
+   pm2 save
+
+   Nếu deploy theo release/standalone, dùng quy trình release hiện tại; bảo đảm
+   package có signing_assets.py, certificate_status.py, package.py, macho.py,
+   verify.py và apple-chain.pem. postbuild kiểm tra đủ các helper này.
+   Đợi job ký đang chạy kết thúc trước khi restart signing worker. Phiên bản mới
+   cần worker mới để xử lý cả yêu cầu thay bộ ký.
+3. INSTALL_STORAGE_DIR và key dùng chung với hệ thống đang chạy. IOS_SIGN_PYTHON
+   trỏ tới môi trường Python/cryptography hiện tại. Không cần SMTP mới.
+4. Mở /admin/signing-sets, thêm bộ ký; xem worker:
+
+   pm2 logs nemo-certificate-worker --lines 50 --nostream
+
+Triển khai theo các lệnh trên có thể gián đoạn web trong lúc build/restart.
+App đã cài không bị ký lại hay thay chứng chỉ bởi migration này.
+Nếu rollback code: giữ hai bảng mới và file mã hóa, không drop/xóa để tránh mất kho.
+
+Kiểm thử local (database riêng nemo_blank_test, không dùng production)
+- node scripts/local-identity.mjs npm run db:migrate
+- node scripts/local-identity.mjs node --import tsx --test tests/signing-sets.test.ts
+- node scripts/local-identity.mjs node --import tsx --test tests/certificate-monitor.test.ts
+- Chạy web local với APP_URL khớp origin; đặt TEST_BASE_URL để chạy
+  tests/signing-sets-http.test.ts. Test HTTP chỉ chấp nhận host localhost/127.0.0.1.
+- Trong scripts/ios: Python môi trường ký -m unittest test_signing_assets
+  test_certificate_status test_profile.
+- npm run lint; npm run typecheck; npm run build.
+
+THAY BỘ KÝ CHO TỪNG THIẾT BỊ (MIGRATION 013)
+
+Vào Thiết bị → Thay bộ ký, hoặc Bộ ký → Chi tiết → Hồ sơ cùng chứng chỉ
+→ Thay bộ ký. Trang /admin/devices/<id>/replace-signing.
+
+1. Chọn bộ ký mới và IPA trắng. Danh sách chỉ hiện bộ còn hạn, active,
+   chứa UDID và có kết quả Apple good trong 2 giờ, phản hồi chưa hết hạn.
+   Key phải còn hiệu lực, có cấu hình thiết bị và thuộc đúng khách.
+2. Bấm Ký bản cài mới. Tạo yêu cầu riêng, tối đa một yêu cầu chưa kết thúc
+   cho mỗi thiết bị. Signing worker xử lý luân phiên job cũ và yêu cầu mới.
+   Worker kiểm tra Apple trực tiếp, ký bằng công cụ hiện tại, kiểm tra chữ ký
+   và SHA-256 của đầu ra. Bản cài cũ/hồ sơ/license không đổi ở bước này.
+3. Khi Sẵn sàng cấp link, bấm Cấp link cài lại. Máy chủ kiểm tra Apple trực tiếp
+   lần nữa, đối chiếu tệp IPA, key, hồ sơ, trạng thái bộ ký và phiên bản nguồn.
+   Nếu hồ sơ đổi trong lúc chờ, yêu cầu bị chặn; hủy và tạo lại.
+4. Một transaction tạo installation + signing job ready, gắn bản cài mới vào
+   hồ sơ, cập nhật ngày chứng chỉ/profile và liên kết bộ ký trong kho.
+   License, identity, bản cài cũ, mã/link cũ không bị sửa hoặc tự thu hồi.
+   Profile theo dõi cũ vẫn được lưu nhưng không áp dụng cho installation mới.
+5. Link riêng dạng /install#code=<mã> sống 15 phút kể từ lúc cấp; có thể bị
+   giới hạn ngắn hơn bởi hạn key. Mã không nằm trong query gửi tới máy chủ.
+   Trang cài đọc fragment, xóa khỏi thanh địa chỉ và đăng nhập mã qua POST.
+   Khách mở Safari, xem bản cài đã chuẩn bị và bấm Cài Nemo; không cần ký lại.
+   OTA thực tế yêu cầu HTTPS. Local HTTP chỉ để xem giao diện/kiểm thử API.
+6. Link/mã chỉ trả về ở lần cấp. Nếu đóng trang, mất phản hồi hoặc link hết hạn,
+   mở Cài đặt Nemo để cấp lại mã cho installation đã tạo. Kiểm tra lịch sử
+   trước khi lặp thao tác nếu kết nối bị ngắt. Chưa có xác nhận cài từ iPhone.
+
+An toàn và lịch sử
+- Hủy được khi queued/signing/ready. Hủy trong lúc ký ngăn kết quả muộn được
+  công bố; không làm đổi hồ sơ cũ. Lần ký lỗi có thể tạo yêu cầu mới.
+- Worker gián đoạn: lần signing quá 20 phút không heartbeat sẽ thành failed.
+- Lưu yêu cầu, bộ cũ/bộ mới, IPA nguồn, lỗi, thời điểm cấp link và audit.
+- Link thuộc quyền người nhận: không chia sẻ công khai. Không tự gửi email.
+- Tệp đầu ra của các yêu cầu ready bị hủy được giữ để đối chiếu, chưa có GC.
+- Bộ ký trong kho được tham chiếu bởi bản cài đã cấp; chỉ archive, không xóa
+  file .secret thủ công. Giữ toàn bộ kho mã hóa khi sao lưu/rollback.
+- Khách chưa cài lại vẫn có thể đang dùng chứng chỉ cũ trên máy. Trạng thái
+  “Đã cấp bản cài mới” không phải xác nhận khách đã cài. Theo dõi hồ sơ từ lúc
+  cấp link sẽ chuyển sang chứng chỉ mới; lịch sử giữ thông tin cũ.
+
+Kiểm thử thêm
+- tests/signing-replacements.test.ts: queue trùng, sai UDID, chứng chỉ không
+  xác minh được/thu hồi, ký lỗi, hủy trong khi ký, hồ sơ đổi giữa chừng, sửa IPA,
+  cấp link nguyên tử, license/bản cài cũ nguyên vẹn, phiên khách nhận job ready.
+  Dùng signer/Apple response mô phỏng trong database riêng; không gửi mail.
+- tests/signing-replacements-http.test.ts: auth, CSRF, route và trang thiết bị.
+- Chưa xác minh cài thực tế trên iPhone trong đợt này. Bộ fixture local hiện có
+  profile cho application-identifier khác Nemo nên bị kiểm tra đầu vào từ chối;
+  không dùng để kết luận đã ký/cài thử thành công bằng bộ chứng chỉ thật.

@@ -12,5 +12,5 @@ async function check(folder) {
   }
 }
 await check(root);
-for (const name of ["package.py", "macho.py", "verify.py", "apple-chain.pem"]) await access(path.join(root, "scripts/ios", name));
+for (const name of ["package.py", "macho.py", "verify.py", "apple-chain.pem", "signing_assets.py", "certificate_status.py"]) await access(path.join(root, "scripts/ios", name));
 console.log("PASS: standalone contains the fixed signing helpers; no .local, .env, signing certificates/profiles or private.pem files.");
