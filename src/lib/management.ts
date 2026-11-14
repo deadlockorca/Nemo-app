@@ -6,6 +6,7 @@ import { tokenHash } from "./password";
 import type { Admin } from "./auth";
 import { parseIdentityConfig, type IdentityConfig } from "./identity-config";
 
+import { parseEmployeeUsername } from "./location-contract";
 import { InputError, id } from "./validation";
 export { InputError, record, id } from "./validation";
 function text(value: unknown, max: number, required = false) {
@@ -39,9 +40,10 @@ export async function saveCustomer(admin: Admin, data: Record<string, unknown>, 
   const name = text(data.name, 120, true);
   const contact = text(data.contact, 254);
   const notes = text(data.notes, 2000);
+  const nemoUsername = data.nemoUsername === undefined ? undefined : parseEmployeeUsername(data.nemoUsername, true);
   return transaction(async (db) => {
     if (!customerId) {
-      const [result] = await db.execute<ResultSetHeader>(`INSERT INTO customers (name, contact, notes) VALUES (?, ?, ?)`, [name, contact || null, notes || null]);
+      const [result] = await db.execute<ResultSetHeader>(`INSERT INTO customers (name, contact, notes, nemo_username) VALUES (?, ?, ?, ?)`, [name, contact || null, notes || null, nemoUsername || null]);
       const newId = String(result.insertId);
       await audit(db, admin, "customer.created", newId, { name });
       return { id: newId };
@@ -50,7 +52,7 @@ export async function saveCustomer(admin: Admin, data: Record<string, unknown>, 
     const [rows] = await db.execute<(RowDataPacket & { name: string; version: number })[]>(`SELECT name, version FROM customers WHERE id = ? FOR UPDATE`, [customerId]);
     if (!rows[0]) throw new InputError("Không tìm thấy khách hàng.", 404);
     expectVersion(data.version, rows[0].version);
-    await db.execute(`UPDATE customers SET name = ?, contact = ?, notes = ?, version = version + 1 WHERE id = ?`, [name, contact || null, notes || null, customerId]);
+    await db.execute(`UPDATE customers SET name = ?, contact = ?, notes = ?, nemo_username = IF(?, nemo_username, ?), version = version + 1 WHERE id = ?`, [name, contact || null, notes || null, nemoUsername === undefined, nemoUsername || null, customerId]);
     await audit(db, admin, "customer.updated", customerId, { before: rows[0].name, after: name });
     return { id: customerId };
   });
@@ -206,12 +208,12 @@ export async function listRecords(section: Section, params: URLSearchParams) {
   const search = `%${q}%`;
   if (section === "customers") {
     from = "customers c";
-    select = `c.id, c.name, c.contact, c.notes, c.version, c.created_at,
+    select = `c.id, c.name, c.contact, c.notes, c.nemo_username, c.version, c.created_at,
       (SELECT COUNT(*) FROM licenses l WHERE l.customer_id = c.id) AS license_count,
       (SELECT COUNT(*) FROM customer_device_profiles p WHERE p.customer_id = c.id) AS device_profile_count`;
     order = "c.id DESC";
-    if (q) { where = `(c.name LIKE ? OR c.contact LIKE ? OR EXISTS(SELECT 1 FROM customer_device_profiles p
-      WHERE p.customer_id = c.id AND (p.label LIKE ? OR CONVERT(p.apple_udid USING utf8mb4) LIKE ? OR p.signing_label LIKE ?)))`; values.push(search, search, search, search, search); }
+    if (q) { where = `(c.name LIKE ? OR c.contact LIKE ? OR c.nemo_username LIKE ? OR EXISTS(SELECT 1 FROM customer_device_profiles p
+      WHERE p.customer_id = c.id AND (p.label LIKE ? OR CONVERT(p.apple_udid USING utf8mb4) LIKE ? OR p.signing_label LIKE ?)))`; values.push(search, search, search, search, search, search); }
   } else if (section === "licenses") {
     from = "licenses l JOIN customers c ON c.id = l.customer_id LEFT JOIN customer_device_profiles p ON p.license_id = l.id";
     select = `l.id, l.customer_id, c.name AS customer_name, l.key_hint, l.status, l.duration_days,

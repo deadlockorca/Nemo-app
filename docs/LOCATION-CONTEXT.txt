@@ -1,0 +1,154 @@
+LOCATION CONTEXT — PILOT IMPLEMENTATION, 15/11/2026
+
+STATUS
+Backend/admin implemented locally. Not deployed to VPS. No production customer,
+license, IPA source, device registration, expiry or signing configuration changed.
+Pilot employee username supplied by owner: 12436899. Do not infer a license ID
+from a username. Select the existing customer's exact license at deployment.
+Source IPA owner identified by directory: Nemo-Blank-6.11.31-335-Final-v2.ipa.
+Info.plist confirms version 6.11.31, build 335 (earlier chat called it 355).
+
+BACKWARD COMPATIBILITY
+Existing /api/v1/challenge, /activate and /verify code and lease claims unchanged.
+Migration 014 adds nullable customers.nemo_username and two new tables.
+Existing customers need no username and old IPAs never call the new endpoint.
+Saving a location policy does not increment licenses.version, change identity,
+device bindings, activation time or expiry. Old admin PATCH requests omitting
+nemoUsername preserve its previous value; explicit empty/null clears it.
+Rollback code leaves the additive schema intact. Do not restore an older DB.
+
+ADMIN
+Create/Edit customer: optional Mã nhân viên / Tên đăng nhập Nemo.
+Username stored as a string, outer whitespace trimmed, case and zeros preserved.
+No passwords or Nemo access tokens collected or stored.
+Quản lý key -> Vị trí thử nghiệm: add verified app hospitalId and original
+latitude/longitude plus radiusMeters > 0 and <= 120; toggle per-license enable.
+No automatic mapping by name or Locations source_codes. Those can differ from
+app db_hospitals.id and linked_hospital_id. Mapping requires runtime evidence.
+Policy starts absent/disabled. Enabled requires active license, assigned username
+and at least one validated center. Admin session + same Origin + policy revision
+required. GET/POST /api/admin/licenses/{id}/location. Revision starts at 0.
+
+GLOBAL PILOT GATES (new runtime env; neither configured means disabled)
+LOCATION_CONTEXT_ENABLED=false
+LOCATION_CONTEXT_PILOT_LICENSE_ID=<exact numeric license ID, not employee code>
+Set enabled=true only for the agreed pilot after checks. Endpoint authorizes
+exactly one allowlisted license. A future multi-customer rollout must explicitly
+replace this single-license gate; do not silently enable every legacy customer.
+Switch global enabled=false or disable the individual policy to deny subsequent
+requests, including retries with cached server responses. An already-returned
+response cannot be remotely erased: validity is capped to 60 seconds and the
+client must bind it to one action, never persist it for later actions.
+
+DEVICE API
+POST /api/v1/location-context (separate from Nemo's business server)
+Content-Type: application/json
+Authorization: Bearer <existing valid signed license lease>
+X-Nemo-Timestamp: <Unix seconds, 10 decimal digits, within 60 seconds>
+X-Nemo-Signature: <Ed25519 signature, base64url without padding>
+
+Body example (UUIDs must be real lowercase UUIDs):
+{
+  "requestId": "a5bd861e-4fc4-4139-8a44-9a248c21865a",
+  "sessionId": "39faf36a-f46a-48c2-b64d-d91d95b5cb72",
+  "action": "start",
+  "hospitalId": "102175",
+  "employeeUsername": "12436899"
+}
+
+sessionId: fresh random UUID for each authenticated login session, discarded on
+logout/account change. requestId: fresh per button action; retry uses same ID.
+action: start|end. hospitalId: actual app action's ID, not display name/code.
+Unknown body fields rejected. Body limited to 4096 bytes, no query credentials.
+
+Signature input is the exact UTF-8 bytes, with literal LF between these lines
+and NO additional LF after the body:
+nemo-location-context-v1
+POST
+/api/v1/location-context
+<X-Nemo-Timestamp>
+<exact raw JSON body>
+
+Sign with the same device private key used for license challenge proofs. Do not
+export that private key, create a different identity, or reserialize after signing.
+Server verifies existing lease signature, live license status/version/expiry,
+current device binding and request signature before checking employee/policy.
+Username check is an admin binding plus a device-authenticated declaration; it
+is NOT independent proof of a successful/current Nemo login. That binding must
+be enforced by the iOS integration from a verified successful session. Do not
+use typed login form text or stale preferences as proof of the active account.
+
+Response 200:
+{
+  "requestId": "...", "sessionId": "...", "action": "start",
+  "hospitalId": "102175",
+  "center": {"latitude": 21.0337507, "longitude": 105.7788244},
+  "radiusMeters": 120,
+  "serverTime": "<UTC ISO>", "expiresAt": "<UTC ISO>"
+}
+No employee username, license token or device credentials in response.
+Expiry <= 60 seconds, lease expiry and license expiry.
+Successful retries return the same response, but only after current authorization
+checks. Reused request ID with changed context/config -> 409. Expired ID -> 409;
+never silently turn retry into a fresh action. Used IDs retained for one day.
+Max 30 newly accepted contexts/minute/license; retry does not consume another
+slot. All responses no-store; errors contain code only, no raw request logging.
+Configure reverse proxy rate limiting for unauthenticated/invalid request floods.
+
+ERRORS
+400 INVALID_REQUEST; 401 UNAUTHORIZED / INVALID_PROOF
+403 FEATURE_DISABLED / INVALID_LICENSE / INVALID_DEVICE / ACCOUNT_MISMATCH
+403 INVALID_ORIGIN; 404 CENTER_NOT_FOUND
+409 REQUEST_CONTEXT_MISMATCH / REQUEST_EXPIRED
+413 PAYLOAD_TOO_LARGE; 415 INVALID_CONTENT_TYPE
+429 RATE_LIMITED (Retry-After: 60); 503 SERVICE_UNAVAILABLE
+
+IOS INTEGRATION — STILL REQUIRED BEFORE A PILOT IPA
+Verify the successful-session employee username field and logout/account-switch
+timing on the test iPhone. Existing evidence confirms two different internal IDs,
+not the username field or trusted session transitions. Verify End's hospital ID
+from the active visit, not whichever hospital is currently selected on screen.
+Native geolocator callbacks alone do not supply account/hospital/action context.
+Do not globally replace CLLocation or guess context from last selected hospital.
+
+Per action: freeze session/account/hospital -> signed VPS request -> compare all
+echo fields/expiry -> request fresh iOS GPS -> copy resulting dictionary -> replace
+only latitude/longitude with one sample for that request -> return exactly once.
+Preserve every other original field/type/presence. Uniform disk: r=R*sqrt(U),
+bearing=2*pi*V, U,V in [0,1); choose R below 120 m and verify actual distance.
+Logout/change cancels pending work and prevents late callbacks from crossing
+sessions. On unavailable/disabled/mismatch/unknown context, use original GPS.
+Don't change existing GPS permission/error behavior. Enforce bounded timeouts.
+Maintain an internal synthetic-source marker without adding it to Nemo requests.
+No changes to Nemo business endpoint, payload schema, login requests or distance
+logic. Only the two coordinate values flow into the existing business handling.
+Custom requestId, sessionId, license/proof and policy remain on our VPS boundary.
+
+DEPLOY SEQUENCE
+1. Back up actual VPS DB/config and inspect deployment diff.
+2. Apply additive migration 014 with existing VPS credentials. Never import local
+   DB, run admin:create, regenerate license keys, or replace the default IPA.
+3. Deploy with LOCATION_CONTEXT_ENABLED=false; verify a test legacy activation
+   and verify against the existing pinned key, preserving expiry/device identity.
+4. Configure pilot username + verified hospital-ID centers in admin, then the
+   exact pilot license environment gate. No bulk enable or forced customer update.
+5. Only after session/End/device checks pass, package a separately named pilot
+   IPA, install on the single test customer and enable the pilot gate.
+6. Test Start/End/account mismatch/logout/restart/network loss/duplicate actions;
+   disable to roll back pilot behavior. Existing default IPA remains unchanged.
+
+LOCAL VERIFICATION
+tests/location-context.test.ts covers new API using a dedicated local server
+with LOCATION_CONTEXT_ENABLED=true and an unused test pilot license ID. Fixtures
+create their own admin/customer/licenses and clean up. Existing license API,
+identity and management regression suites also run against that local DB.
+Never point these tests or their fixed pilot ID at production.
+
+VERIFICATION RESULT (local, 15/11/2026)
+61/61 tests passed: location-context, license-api, license-identity, management,
+record-deletion suites on isolated MySQL at 127.0.0.1:13316. Browser check passed
+for customer username, center editor, save/reopen and mobile rendering.
+A broader npm test attempt was stopped because unrelated certificate suites
+require the specifically named nemo_blank_test database and signing/storage/
+Python fixtures, which this isolated environment deliberately does not share.
+Do not report the entire repository suite as passed. No production calls.

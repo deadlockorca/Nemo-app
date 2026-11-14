@@ -1,6 +1,6 @@
 export type ManagementSection = "customers" | "licenses" | "devices" | "activity";
 export type ManagementRow = {
-  id: string; name?: string; contact?: string | null; notes?: string | null;
+  id: string; nemo_username?: string | null; name?: string; contact?: string | null; notes?: string | null;
   version?: number; created_at?: string; license_count?: string; device_profile_count?: string;
   customer_id?: string; customer_name?: string; key_hint?: string;
   duration_days?: number; display_status?: string; activated_at?: string | null; expires_at?: string | null;
@@ -14,6 +14,7 @@ export const sectionTitles: Record<ManagementSection, string> = {
   customers: "Khách hàng", licenses: "Quản lý key", devices: "Thiết bị", activity: "Lịch sử hoạt động",
 };
 export const actionTitles: Record<string, string> = {
+  "license.location_updated": "Cập nhật cấu hình vị trí",
   "replacement.queued": "Yêu cầu ký lại cho thiết bị", "replacement.cancelled": "Hủy yêu cầu thay bộ ký", "replacement.issued": "Cấp bản cài thay bộ ký",
   "signing_set.created": "Thêm bộ ký", "signing_set.edit": "Sửa bộ ký", "signing_set.archive": "Lưu trữ bộ ký", "signing_set.restore": "Khôi phục bộ ký",
   "signing_set.link": "Liên kết thiết bị trong kho bộ ký", "signing_set.unlink": "Gỡ liên kết thiết bị trong kho bộ ký",
