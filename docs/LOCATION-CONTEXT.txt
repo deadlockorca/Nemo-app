@@ -1,8 +1,9 @@
 LOCATION CONTEXT — PILOT IMPLEMENTATION, 15/11/2026
 
 STATUS
-Backend/admin implemented locally. Not deployed to VPS. No production customer,
-license, IPA source, device registration, expiry or signing configuration changed.
+Owner deployed the base backend/migration 014 and observed HTTP 401 from the
+new endpoint. The catalog addition requires another pull/build/restart; no new
+migration. No automatic production customer/license/policy updates are made.
 Pilot employee username supplied by owner: 12436899. Do not infer a license ID
 from a username. Select the existing customer's exact license at deployment.
 Source IPA owner identified by directory: Nemo-Blank-6.11.31-335-Final-v2.ipa.
@@ -154,3 +155,25 @@ A broader npm test attempt was stopped because unrelated certificate suites
 require the specifically named nemo_blank_test database and signing/storage/
 Python fixtures, which this isolated environment deliberately does not share.
 Do not report the entire repository suite as passed. No production calls.
+
+ACCOUNT LOCATION CATALOG
+Source: data/location-catalogs/12436899.json, extracted from the account-filtered
+iPhone cache. Includes 15 valid centers with names; excludes 7 missing coordinates.
+No token, password, system account ID or raw database included.
+The catalog is loaded server-side and returned only by the authenticated admin
+location-policy endpoint for the exact assigned username. It is not placed in
+public/ or imported into the public client bundle.
+For a key with no saved policy (version 0), the editor fills the 15 suggestions
+automatically. Save to persist them to this key. Viewing does not write to DB or
+enable random. Saved policies remain unchanged when new catalog data is deployed.
+The import button appends only missing IDs, preserving existing centers, edited
+coordinates and radii. Duplicate imports do not add duplicate IDs. Invalid drafts
+or more than 100 centers must be corrected before importing. Names are shown from
+the matching catalog; API/policy storage continues to use hospitalId and numbers.
+Customers without the matching username do not receive this catalog.
+
+Catalog release validation: 61/61 relevant tests, lint and production build pass.
+Browser checks cover prefill, import preserving edits, save/reopen and default-off.
+Deploy: git pull --ff-only origin main; npm run build; restart the existing web
+process using its current start method. Migration 014 is already applied on VPS;
+there is no new migration or dependency for this catalog release.

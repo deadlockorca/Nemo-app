@@ -25,6 +25,14 @@ export function parseCenters(value: unknown): LocationCenter[] {
   });
 }
 
+export function mergeLocationCenters(existing: LocationCenter[], incoming: LocationCenter[]): LocationCenter[] {
+  const current = parseCenters(existing);
+  const additions = parseCenters(incoming);
+  const ids = new Set(current.map(center => center.hospitalId));
+  // Preserve existing user edits; only append IDs that are not already present.
+  return parseCenters([...current, ...additions.filter(center => !ids.has(center.hospitalId))]);
+}
+
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export function parseLocationRequest(value: Record<string, unknown>) {
   if (Object.keys(value).some(k => !["requestId", "sessionId", "action", "hospitalId", "employeeUsername"].includes(k))) throw new InputError("Request có trường không hỗ trợ.");

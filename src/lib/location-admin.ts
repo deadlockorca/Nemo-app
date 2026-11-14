@@ -3,6 +3,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { Admin } from "./auth";
 import { getDb } from "./db";
 import { parseCenters } from "./location-contract";
+import { locationCatalog } from "./location-catalog";
 import { id, InputError } from "./validation";
 
 function decode(value: unknown) { return typeof value === "string" ? JSON.parse(value) : value; }
@@ -14,7 +15,8 @@ export async function getLocationPolicy(licenseId: string) {
     LEFT JOIN license_location_policies p ON p.license_id = l.id WHERE l.id = ?`, [licenseId]);
   if (!rows[0]) throw new InputError("Không tìm thấy key.", 404);
   const row = rows[0];
-  return { employeeUsername: row.nemo_username, enabled: Boolean(row.enabled), centers: row.centers ? parseCenters(decode(row.centers)) : [], version: row.version ?? 0 };
+  return { employeeUsername: row.nemo_username, enabled: Boolean(row.enabled), centers: row.centers ? parseCenters(decode(row.centers)) : [], version: row.version ?? 0,
+    catalog: locationCatalog(row.nemo_username) };
 }
 
 export async function saveLocationPolicy(admin: Admin, licenseId: string, data: Record<string, unknown>) {

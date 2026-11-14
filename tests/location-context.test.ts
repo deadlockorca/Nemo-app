@@ -5,7 +5,8 @@ import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign } from "
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDb } from "../src/lib/db";
 import { hashPassword } from "../src/lib/password";
-import { locationProofMessage, parseCenters, parseEmployeeUsername } from "../src/lib/location-contract";
+import { locationProofMessage, mergeLocationCenters, parseCenters, parseEmployeeUsername } from "../src/lib/location-contract";
+import catalog from "../data/location-catalogs/12436899.json";
 
 const base = process.env.TEST_BASE_URL || "http://localhost:3000";
 const origin = new URL(base).origin;
@@ -18,6 +19,18 @@ test("location validation preserves employee IDs and rejects invalid centers", (
   const center = { hospitalId: "102175", latitude: 21.0337507, longitude: 105.7788244, radiusMeters: 120 };
   assert.deepEqual(parseCenters([center]), [center]);
   for (const rows of [[center, center], [{ ...center, latitude: 91 }], [{ ...center, radiusMeters: 121 }], [{ ...center, longitude: null }]]) assert.throws(() => parseCenters(rows));
+});
+
+test("catalog imports add missing IDs while preserving saved centers and rejecting invalid drafts", () => {
+  const original = parseCenters(catalog.centers);
+  assert.equal(original.length, 15); assert.equal(catalog.missingCoordinates, 7);
+  const edited = { ...original[0], latitude: 20, radiusMeters: 80 };
+  const merged = mergeLocationCenters([edited], original);
+  assert.equal(merged.length, 15); assert.deepEqual(merged[0], edited);
+  assert.deepEqual(mergeLocationCenters(merged, original), merged);
+  assert.throws(() => mergeLocationCenters([{ ...edited, hospitalId: "" }], original));
+  const many = Array.from({ length: 100 }, (_, i) => ({ ...edited, hospitalId: String(900000 + i) }));
+  assert.throws(() => mergeLocationCenters(many, original));
 });
 
 test("admin-managed location API isolates legacy licenses and checks current account/device/config on retries", async t => {
@@ -72,9 +85,17 @@ test("admin-managed location API isolates legacy licenses and checks current acc
       assert.equal((await admin(`licenses/${pilotId}/location`, "GET", undefined, { cookie: "" })).status, 401);
       assert.equal((await admin(`licenses/${pilotId}/location`, "POST", {}, { origin: "https://example.invalid" })).status, 403);
       const initial = await (await admin(`licenses/${pilotId}/location`)).json(); assert.equal(initial.enabled, false); assert.equal(initial.version, 0);
+      assert.equal(initial.catalog.centers.length, 15); assert.deepEqual(initial.centers, []);
+      const [unmodified] = await db.execute<RowDataPacket[]>(`SELECT license_id FROM license_location_policies WHERE license_id = ?`, [pilotId]);
+      assert.equal(unmodified.length, 0, "Reading suggestions must not enable or write a policy");
+      await db.execute(`UPDATE customers SET nemo_username = 'OTHER' WHERE id = ?`, [customerId]);
+      assert.equal((await (await admin(`licenses/${pilotId}/location`)).json()).catalog, null);
+      await db.execute(`UPDATE customers SET nemo_username = ? WHERE id = ?`, [context.employeeUsername, customerId]);
       await expectCode(await call(), 403, "FEATURE_DISABLED");
       assert.equal((await admin(`licenses/${pilotId}/location`, "POST", { version: 0, enabled: true, centers: [] })).status, 400);
       await savePolicy(true);
+      const saved = await (await admin(`licenses/${pilotId}/location`)).json();
+      assert.deepEqual(saved.centers, [center], "Catalog must not overwrite saved centers");
       assert.equal((await admin(`licenses/${pilotId}/location`, "POST", { version: 0, enabled: true, centers: [center] })).status, 409);
       assert.equal(await snapshot(), before);
     });

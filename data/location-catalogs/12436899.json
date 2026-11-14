@@ -1,0 +1,113 @@
+{
+  "employeeUsername": "12436899",
+  "label": "Địa điểm tài khoản 12436899",
+  "capturedAt": "2026-11-15T03:24:37.530291+07:00",
+  "missingCoordinates": 7,
+  "centers": [
+    {
+      "hospitalId": "102156",
+      "latitude": 20.725758535662322,
+      "longitude": 105.77323700360975,
+      "radiusMeters": 120,
+      "name": "ACC0955 - Benh Vien Da Khoa Van Dinh"
+    },
+    {
+      "hospitalId": "102175",
+      "latitude": 21.0337507,
+      "longitude": 105.7788244,
+      "radiusMeters": 120,
+      "name": "ACC0974 - Benh Vien 19-8"
+    },
+    {
+      "hospitalId": "102176",
+      "latitude": 21.0343108,
+      "longitude": 105.7801496,
+      "radiusMeters": 120,
+      "name": "ACC0975 - Benh Vien Da Khoa Y Hoc Co Truyen Ha Noi"
+    },
+    {
+      "hospitalId": "102221",
+      "latitude": 21.003412,
+      "longitude": 105.859587,
+      "radiusMeters": 120,
+      "name": "ACC1020 - Benh Vien Thanh Nhan"
+    },
+    {
+      "hospitalId": "102275",
+      "latitude": 20.972885820352836,
+      "longitude": 105.82431663179152,
+      "radiusMeters": 120,
+      "name": "ACC1075 - Benh Vien Y Hoc Co Truyen Quan Doi"
+    },
+    {
+      "hospitalId": "102306",
+      "latitude": 20.989899,
+      "longitude": 105.839063,
+      "radiusMeters": 120,
+      "name": "ACC1106 - Phong Kham Nhi Khoa - Bac Si Nguyen Tien Dung"
+    },
+    {
+      "hospitalId": "102821",
+      "latitude": 21.003094,
+      "longitude": 105.859855,
+      "radiusMeters": 120,
+      "name": "752004428 - THIET BI Y TE THANH NHAN"
+    },
+    {
+      "hospitalId": "102864",
+      "latitude": 20.989899,
+      "longitude": 105.839063,
+      "radiusMeters": 120,
+      "name": "752004472 - NGUYEN TIEN DUNG"
+    },
+    {
+      "hospitalId": "109763",
+      "latitude": 21.0313893,
+      "longitude": 105.7826891,
+      "radiusMeters": 120,
+      "name": "3A-HANO - Van Phong 3A Ha Noi"
+    },
+    {
+      "hospitalId": "109771",
+      "latitude": 21.0293447,
+      "longitude": 105.8115129,
+      "radiusMeters": 120,
+      "name": "RO-HANO - Van Phong RO Ha Noi"
+    },
+    {
+      "hospitalId": "111264",
+      "latitude": 21.048694,
+      "longitude": 105.742128,
+      "radiusMeters": 120,
+      "name": "KHO-HANO - Kho Ha Noi"
+    },
+    {
+      "hospitalId": "115587",
+      "latitude": 20.72495,
+      "longitude": 105.7728017,
+      "radiusMeters": 120,
+      "name": "100090835 - TRUNG TAM TIEM CHUNG VAC XIN VIET Y"
+    },
+    {
+      "hospitalId": "116808",
+      "latitude": 20.725489619222675,
+      "longitude": 105.77396984373588,
+      "radiusMeters": 120,
+      "name": "100093135 - CONG TY CO PHAN DICH VU THUONG MAI SONG DUONG"
+    },
+    {
+      "hospitalId": "118432",
+      "latitude": 21.00094081577714,
+      "longitude": 105.85915698508128,
+      "radiusMeters": 120,
+      "name": "100096263 - NGUYEN BANG VIET"
+    },
+    {
+      "hospitalId": "121272",
+      "latitude": 20.960307395780163,
+      "longitude": 105.82755820003462,
+      "radiusMeters": 120,
+      "name": "ACC3282 - Bệnh viện Đại học Y Dược - Cơ sở Linh Đàm"
+    }
+  ]
+}
