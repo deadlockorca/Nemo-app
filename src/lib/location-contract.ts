@@ -37,9 +37,3 @@ export function parseLocationRequest(value: Record<string, unknown>) {
 export function locationProofMessage(timestamp: string, rawBody: string) {
   return `nemo-location-context-v1\nPOST\n/api/v1/location-context\n${timestamp}\n${rawBody}`;
 }
-
-export function locationPilotLicense(env: Record<string, string | undefined>): string | null {
-  const pilot = env.LOCATION_CONTEXT_PILOT_LICENSE_ID;
-  return env.LOCATION_CONTEXT_ENABLED === "true" && pilot && /^[1-9]\d{0,19}$/.test(pilot)
-    && BigInt(pilot) <= BigInt("18446744073709551615") ? pilot : null;
-}

@@ -4,8 +4,8 @@ import { test } from "node:test";
 import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign } from "node:crypto";
 import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { getDb } from "../src/lib/db";
-import { hashPassword, tokenHash } from "../src/lib/password";
-import { locationPilotLicense, locationProofMessage, parseCenters, parseEmployeeUsername } from "../src/lib/location-contract";
+import { hashPassword } from "../src/lib/password";
+import { locationProofMessage, parseCenters, parseEmployeeUsername } from "../src/lib/location-contract";
 
 const base = process.env.TEST_BASE_URL || "http://localhost:3000";
 const origin = new URL(base).origin;
@@ -20,20 +20,10 @@ test("location validation preserves employee IDs and rejects invalid centers", (
   for (const rows of [[center, center], [{ ...center, latitude: 91 }], [{ ...center, radiusMeters: 121 }], [{ ...center, longitude: null }]]) assert.throws(() => parseCenters(rows));
 });
 
-test("pilot gate is off by default and requires an explicit single valid license", () => {
-  for (const env of [{}, { LOCATION_CONTEXT_ENABLED: "true" }, { LOCATION_CONTEXT_PILOT_LICENSE_ID: "123" },
-    { LOCATION_CONTEXT_ENABLED: "true", LOCATION_CONTEXT_PILOT_LICENSE_ID: "123,456" },
-    { LOCATION_CONTEXT_ENABLED: "true", LOCATION_CONTEXT_PILOT_LICENSE_ID: "99999999999999999999" }]) assert.equal(locationPilotLicense(env), null);
-  assert.equal(locationPilotLicense({ LOCATION_CONTEXT_ENABLED: "true", LOCATION_CONTEXT_PILOT_LICENSE_ID: "123" }), "123");
-  assert.equal(locationPilotLicense({ LOCATION_CONTEXT_ENABLED: "false", LOCATION_CONTEXT_PILOT_LICENSE_ID: "123" }), null);
-});
-
-test("pilot location API isolates legacy licenses and checks current account/device/config on retries", async t => {
-  const pilotId = process.env.LOCATION_CONTEXT_PILOT_LICENSE_ID;
-  if (process.env.LOCATION_CONTEXT_ENABLED !== "true" || !pilotId) { t.skip("Requires dedicated local pilot-enabled server."); return; }
+test("admin-managed location API isolates legacy licenses and checks current account/device/config on retries", async t => {
   const db = getDb();
   const prefix = `location-${randomBytes(8).toString("hex")}`, password = randomBytes(24).toString("hex");
-  let customerId = "", adminId = "", otherId = "", cookie = "", token = "", otherToken = "";
+  let pilotId = "", customerId = "", adminId = "", otherId = "", cookie = "", token = "", otherToken = "";
   const device = generateKeyPairSync("ed25519"), other = generateKeyPairSync("ed25519");
   const der = device.publicKey.export({ format: "der", type: "spki" });
   const fingerprint = createHash("sha256").update(der).digest("hex");
@@ -65,16 +55,13 @@ test("pilot location API isolates legacy licenses and checks current account/dev
   const snapshot = async () => JSON.stringify((await db.execute<RowDataPacket[]>(`SELECT l.status, l.version, l.activated_at, l.expires_at, d.fingerprint, d.public_key
     FROM licenses l JOIN devices d ON d.license_id = l.id WHERE l.id = ?`, [pilotId]))[0]);
   try {
-    const [existing] = await db.execute<RowDataPacket[]>(`SELECT id FROM licenses WHERE id = ?`, [pilotId]);
-    assert.equal(existing.length, 0, "Dedicated pilot test ID must be unused");
     const [a] = await db.execute<ResultSetHeader>(`INSERT INTO admins (username, display_name, password_hash) VALUES (?, ?, ?)`, [prefix, prefix, await hashPassword(password)]); adminId = String(a.insertId);
     const login = await fetch(new URL("/api/auth/login", base), { method: "POST", redirect: "manual", headers: { origin }, body: new URLSearchParams({ username: prefix, password }) });
     assert.equal(login.status, 303); cookie = login.headers.get("set-cookie")!.split(";")[0];
     const created = await admin("customers", "POST", { name: prefix, nemoUsername: context.employeeUsername }); assert.equal(created.status, 201); customerId = (await created.json()).id;
-    const key = `NEMO-${randomBytes(20).toString("hex").toUpperCase().match(/.{8}/g)!.join("-")}`;
-    await db.execute(`INSERT INTO licenses (id, customer_id, key_hash, key_hint, duration_days, status, activated_at, expires_at)
-      VALUES (?, ?, ?, ?, 30, 'active', UTC_TIMESTAMP(3), UTC_TIMESTAMP(3) + INTERVAL 30 DAY)`, [pilotId, customerId, tokenHash(key), key.slice(-8)]);
-    token = (await activate(key, device)).token;
+    const createdLicense = await admin("licenses", "POST", { customerId, durationDays: 30 });
+    assert.equal(createdLicense.status, 201); const pilot = await createdLicense.json(); pilotId = pilot.id;
+    token = (await activate(pilot.key, device)).token;
     const legacy = await admin("licenses", "POST", { customerId, durationDays: 30 }); assert.equal(legacy.status, 201); const issued = await legacy.json(); otherId = issued.id;
     const legacyLease = await activate(issued.key, other); otherToken = legacyLease.token;
     const oldClaims = JSON.parse(Buffer.from(otherToken.split(".")[1], "base64url").toString());
@@ -92,9 +79,9 @@ test("pilot location API isolates legacy licenses and checks current account/dev
       assert.equal(await snapshot(), before);
     });
     let response: Record<string, unknown>;
-    await t.test("only the configured pilot/account/hospital may resolve a center", async () => {
+    await t.test("only an enabled license with matching account/hospital may resolve a center", async () => {
       await expectCode(await call(context, { token: "bad" }), 401, "UNAUTHORIZED");
-      await expectCode(await call(context, { token: otherToken }), 403, "FEATURE_DISABLED");
+      await expectCode(await call(context, { token: otherToken, pair: other }), 403, "FEATURE_DISABLED");
       await expectCode(await call({ ...context, employeeUsername: "OTHER" }), 403, "ACCOUNT_MISMATCH");
       await expectCode(await call({ ...context, hospitalId: "999999" }), 404, "CENTER_NOT_FOUND");
       const r = await call(); assert.equal(r.status, 200, await r.clone().text()); response = await r.json();
@@ -137,12 +124,21 @@ test("pilot location API isolates legacy licenses and checks current account/dev
       assert.equal(claims.identity, undefined); assert.equal(claims.employeeUsername, undefined);
       await savePolicy(true);
     });
-    await t.test("center edits invalidate retries and allowlisting rejects another enabled license", async () => {
+    await t.test("admin may enable a second license without env changes; policies and centers stay independent", async () => {
       const fresh = { ...context, requestId: randomUUID() }; assert.equal((await call(fresh)).status, 200);
       await savePolicy(true, [{ ...center, radiusMeters: 119 }]);
       await expectCode(await call(fresh), 409, "REQUEST_CONTEXT_MISMATCH");
-      const r = await admin(`licenses/${otherId}/location`, "POST", { enabled: true, version: 0, centers: [center] }); assert.equal(r.status, 200);
-      await expectCode(await call(context, { token: otherToken, pair: other }), 403, "FEATURE_DISABLED");
+      const secondCenter = { ...center, latitude: 20.5, radiusMeters: 100 };
+      const r = await admin(`licenses/${otherId}/location`, "POST", { enabled: true, version: 0, centers: [secondCenter] }); assert.equal(r.status, 200);
+      const secondContext = { ...context, requestId: randomUUID() };
+      const otherResponse = await call(secondContext, { token: otherToken, pair: other });
+      assert.equal(otherResponse.status, 200); const otherBody = await otherResponse.json();
+      assert.deepEqual(otherBody.center, { latitude: secondCenter.latitude, longitude: secondCenter.longitude });
+      assert.equal(otherBody.radiusMeters, 100);
+      await savePolicy(false);
+      await expectCode(await call({ ...context, requestId: randomUUID() }), 403, "FEATURE_DISABLED");
+      assert.equal((await call(secondContext, { token: otherToken, pair: other })).status, 200);
+      await savePolicy(true);
     });
     await t.test("new actions are rate limited while retries keep their existing result", async () => {
       const fresh = { ...context, requestId: randomUUID() }; assert.equal((await call(fresh)).status, 200);
@@ -174,7 +170,7 @@ test("pilot location API isolates legacy licenses and checks current account/dev
   } finally {
     if (customerId) {
       await db.execute(`DELETE FROM license_challenges WHERE fingerprint IN (?, ?)`, [fingerprint, createHash("sha256").update(other.publicKey.export({ format: "der", type: "spki" })).digest("hex")]);
-      await db.execute(`DELETE FROM devices WHERE license_id IN (?, ?)`, [pilotId, otherId || "0"]);
+      await db.execute(`DELETE FROM devices WHERE license_id IN (?, ?)`, [pilotId || "0", otherId || "0"]);
       await db.execute(`DELETE FROM licenses WHERE customer_id = ?`, [customerId]);
       await db.execute(`DELETE FROM customers WHERE id = ?`, [customerId]);
     }

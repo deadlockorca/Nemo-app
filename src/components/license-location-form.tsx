@@ -42,7 +42,7 @@ export function LicenseLocationForm({ licenseId, onBusy, onSaved }: { licenseId:
       <p>Tên đăng nhập Nemo: <strong>{policy.employeeUsername || "Chưa gán"}</strong></p>
       {!policy.employeeUsername && <p className="field-help">Gán tên đăng nhập trong phần Chỉnh sửa khách hàng trước khi bật.</p>}
       <label className="saved-checkbox"><input type="checkbox" checked={enabled} disabled={busy || !policy.employeeUsername} onChange={event => setEnabled(event.target.checked)} />Cho phép random vị trí trên key này</label>
-      <p className="field-help">Chỉ có hiệu lực với bản app hỗ trợ và key được chọn cho đợt thử nghiệm. Các key khác giữ nguyên.</p>
+      <p className="field-help">Chỉ có hiệu lực với bản app hỗ trợ và key này. Các key khác cần được bật riêng.</p>
       {centers.map((center, index) => <fieldset key={index} disabled={busy}>
         <legend>Địa điểm {index + 1}</legend>
         <label htmlFor={`hospital-${index}`}>ID địa điểm trong app</label>

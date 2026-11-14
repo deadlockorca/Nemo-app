@@ -3,7 +3,7 @@ import { createHash, verify } from "node:crypto";
 import type { RowDataPacket } from "mysql2/promise";
 import { getDb } from "./db";
 import { signingIdentity, verifyLease, publicIdentity } from "./license-crypto";
-import { locationPilotLicense, locationProofMessage, parseCenters, parseLocationRequest } from "./location-contract";
+import { locationProofMessage, parseCenters, parseLocationRequest } from "./location-contract";
 import { InputError } from "./validation";
 
 export class LocationApiError extends Error {
@@ -13,9 +13,7 @@ function fail(code: string, status = 403): never { throw new LocationApiError(co
 function decode(value: unknown) { return typeof value === "string" ? JSON.parse(value) : value; }
 
 export async function resolveLocation(request: Request, rawBody: string) {
-  // Explicit pilot allowlist: missing configuration is always disabled.
-  const pilot = locationPilotLicense(process.env);
-  if (!pilot) fail("FEATURE_DISABLED");
+  // Authorization is managed per license in admin; absent policy stays disabled.
   const auth = request.headers.get("authorization") || "";
   if (!auth.startsWith("Bearer ") || auth.length > 4103) fail("UNAUTHORIZED", 401);
   const token = auth.slice(7);
@@ -26,7 +24,6 @@ export async function resolveLocation(request: Request, rawBody: string) {
     const untrusted = JSON.parse(Buffer.from(token.split(".")[1] || "", "base64url").toString("utf8"));
     claims = verifyLease(token, signingIdentity().publicKey, untrusted.device);
   } catch { fail("UNAUTHORIZED", 401); }
-  if (claims.sub !== pilot) fail("FEATURE_DISABLED");
   const timestamp = request.headers.get("x-nemo-timestamp") || "";
   const signature = request.headers.get("x-nemo-signature") || "";
   if (!/^\d{10}$/.test(timestamp) || Math.abs(Date.now() / 1000 - Number(timestamp)) > 60 || !/^[A-Za-z0-9_-]{86}$/.test(signature)) fail("INVALID_PROOF", 401);

@@ -29,16 +29,17 @@ Policy starts absent/disabled. Enabled requires active license, assigned usernam
 and at least one validated center. Admin session + same Origin + policy revision
 required. GET/POST /api/admin/licenses/{id}/location. Revision starts at 0.
 
-GLOBAL PILOT GATES (new runtime env; neither configured means disabled)
-LOCATION_CONTEXT_ENABLED=false
-LOCATION_CONTEXT_PILOT_LICENSE_ID=<exact numeric license ID, not employee code>
-Set enabled=true only for the agreed pilot after checks. Endpoint authorizes
-exactly one allowlisted license. A future multi-customer rollout must explicitly
-replace this single-license gate; do not silently enable every legacy customer.
-Switch global enabled=false or disable the individual policy to deny subsequent
-requests, including retries with cached server responses. An already-returned
-response cannot be remotely erased: validity is capped to 60 seconds and the
-client must bind it to one action, never persist it for later actions.
+ADMIN-MANAGED AUTHORIZATION (no location environment variables)
+The endpoint is always available. There is no hardcoded pilot license ID.
+Only a valid live license/device with a matching employee username AND an
+explicitly enabled per-license policy may receive a configured center.
+Missing policy remains disabled for every existing/new license by default.
+For the first rollout, enable only the agreed customer's license in admin.
+Additional customers are enabled individually later, without editing env or
+restarting the service. Centers and toggles are isolated by license.
+Disable the individual policy to deny subsequent requests, including retries
+with cached server responses. A response already returned cannot be remotely
+erased: validity is capped to 60 seconds and the client must bind it to one action.
 
 DEVICE API
 POST /api/v1/location-context (separate from Nemo's business server)
@@ -128,24 +129,25 @@ DEPLOY SEQUENCE
 1. Back up actual VPS DB/config and inspect deployment diff.
 2. Apply additive migration 014 with existing VPS credentials. Never import local
    DB, run admin:create, regenerate license keys, or replace the default IPA.
-3. Deploy with LOCATION_CONTEXT_ENABLED=false; verify a test legacy activation
+3. Deploy with individual policies disabled until the pilot IPA is verified.
+   Verify a test legacy activation
    and verify against the existing pinned key, preserving expiry/device identity.
-4. Configure pilot username + verified hospital-ID centers in admin, then the
-   exact pilot license environment gate. No bulk enable or forced customer update.
+4. Configure pilot username + verified hospital-ID centers in admin.
+   No bulk enable or forced customer update. No env license assignment.
 5. Only after session/End/device checks pass, package a separately named pilot
-   IPA, install on the single test customer and enable the pilot gate.
+   IPA, install on the single test customer and enable only that license in admin.
 6. Test Start/End/account mismatch/logout/restart/network loss/duplicate actions;
    disable to roll back pilot behavior. Existing default IPA remains unchanged.
 
 LOCAL VERIFICATION
 tests/location-context.test.ts covers new API using a dedicated local server
-with LOCATION_CONTEXT_ENABLED=true and an unused test pilot license ID. Fixtures
+without location env configuration. Fixtures
 create their own admin/customer/licenses and clean up. Existing license API,
 identity and management regression suites also run against that local DB.
-Never point these tests or their fixed pilot ID at production.
+Never point these tests at production.
 
 VERIFICATION RESULT (local, 15/11/2026)
-61/61 tests passed: location-context, license-api, license-identity, management,
+60/60 tests passed after removing env-based license selection: location-context, license-api, license-identity, management,
 record-deletion suites on isolated MySQL at 127.0.0.1:13316. Browser check passed
 for customer username, center editor, save/reopen and mobile rendering.
 A broader npm test attempt was stopped because unrelated certificate suites
